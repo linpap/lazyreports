@@ -749,7 +749,7 @@ export const getAnalyticsDetail = async (req, res, next) => {
                         MOD(TIMESTAMPDIFF(MINUTE, v.date_created, NOW()), 60), ' minutes')
             ELSE CONCAT(TIMESTAMPDIFF(DAY, v.date_created, NOW()), ' days')
           END as since_visit,
-          MIN(a.action) as page,
+          (SELECT a2.name FROM ${tenantDb}.action a2 WHERE a2.pkey = v.pkey ORDER BY a2.action LIMIT 1) as page,
           v.pkey as visitor_id,
           MIN(a.pkey) as action_id,
           COUNT(a.pkey) as total_actions,
@@ -772,7 +772,7 @@ export const getAnalyticsDetail = async (req, res, next) => {
                         MOD(TIMESTAMPDIFF(MINUTE, v.date_created, NOW()), 60), ' minutes')
             ELSE CONCAT(TIMESTAMPDIFF(DAY, v.date_created, NOW()), ' days')
           END as since_visit,
-          a.action as page,
+          a.name as page,
           v.pkey as visitor_id,
           a.pkey as action_id,
           (SELECT COUNT(*) FROM ${tenantDb}.action a2 WHERE a2.pkey = v.pkey) as total_actions,
