@@ -3,10 +3,14 @@
   "version": "1.0.0",
   "description": "LazySauce Analytics Platform",
   "type": "module",
+  "engines": {
+    "node": "18.x"
+  },
   "scripts": {
-    "build": "cd frontend && npm run build",
+    "build": "npm run build:frontend",
+    "build:frontend": "cd frontend && npm install && npm run build",
     "dev": "cd frontend && npm run dev",
-    "install:all": "cd frontend && npm install && cd ../backend && npm install"
+    "vercel-build": "cd frontend && npm install && npm run build"
   },
   "dependencies": {
     "express": "^4.18.2",
