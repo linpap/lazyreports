@@ -131,12 +131,12 @@ export default function MainLayout() {
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-secondary-200 transform transition-transform duration-300 lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-secondary-200 transform transition-transform duration-300 lg:translate-x-0 flex flex-col ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Logo */}
-        <div className="flex items-center justify-between h-16 px-4 border-b border-secondary-200">
+        <div className="flex items-center justify-between h-16 px-4 border-b border-secondary-200 flex-shrink-0">
           <div className="flex items-center">
             <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
               <BarChart3 className="w-5 h-5 text-white" />
@@ -154,25 +154,25 @@ export default function MainLayout() {
         </div>
 
         {/* Navigation */}
-        <nav className="p-4 space-y-1">
+        <nav className="p-4 space-y-1 flex-1 overflow-y-auto">
           {navigation.map((item) => (
             <NavItem key={item.name} item={item} />
           ))}
         </nav>
 
         {/* User section */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-secondary-200">
+        <div className="p-4 border-t border-secondary-200 flex-shrink-0 bg-white">
           <div className="flex items-center mb-3">
-            <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
+            <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
               <span className="text-primary-700 font-medium">
                 {user?.username?.charAt(0).toUpperCase() || 'U'}
               </span>
             </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-secondary-900">
+            <div className="ml-3 min-w-0">
+              <p className="text-sm font-medium text-secondary-900 truncate">
                 {user?.username || 'User'}
               </p>
-              <p className="text-xs text-secondary-500 capitalize">
+              <p className="text-xs text-secondary-500 capitalize truncate">
                 {user?.role || 'User'}
               </p>
             </div>

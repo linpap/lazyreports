@@ -1,11 +1,12 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronDown, Filter, Settings, Download, RefreshCw, Search, Columns, FileDown } from 'lucide-react';
+import { Filter, Settings, Download, RefreshCw, Search, Columns, FileDown } from 'lucide-react';
 import { analyticsApi, domainsApi } from '../../services/api';
 import { useFilterStore } from '../../store/filterStore';
 import DateRangePicker from '../../components/common/DateRangePicker';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import FilterPanel from '../../components/common/FilterPanel';
+import OfferSelector from '../../components/common/OfferSelector';
 import GroupBySelector from '../../components/reports/GroupBySelector';
 import AnalyticsTable from '../../components/reports/AnalyticsTable';
 import DetailModal from '../../components/reports/DetailModal';
@@ -138,10 +139,8 @@ export default function AnalyticsReport() {
     URL.revokeObjectURL(url);
   };
 
-  const handleDomainChange = (e) => {
-    const dkey = e.target.value;
-    const domain = domains.find((d) => d.dkey === dkey);
-    setSelectedDomain(dkey, domain?.name || '');
+  const handleDomainChange = (dkey, name) => {
+    setSelectedDomain(dkey, name);
   };
 
   const handleFiltersChange = useCallback((newFilters) => {
@@ -212,24 +211,12 @@ export default function AnalyticsReport() {
         <div className="flex flex-wrap items-center gap-3">
           {/* Offer Selector */}
           {domains.length > 0 && (
-            <div className="relative">
-              <select
-                value={selectedDkey || ''}
-                onChange={handleDomainChange}
-                className="appearance-none bg-white border border-secondary-300 rounded-lg px-4 py-2 pr-10 text-sm font-medium text-secondary-700 hover:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent cursor-pointer min-w-[200px]"
-                disabled={domainsLoading}
-              >
-                <option value="" disabled>
-                  Select Offer
-                </option>
-                {domains.map((domain) => (
-                  <option key={domain.dkey} value={domain.dkey}>
-                    {domain.name}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-secondary-400 pointer-events-none" />
-            </div>
+            <OfferSelector
+              domains={domains}
+              selectedDkey={selectedDkey}
+              onChange={handleDomainChange}
+              disabled={domainsLoading}
+            />
           )}
 
           {/* Refine Query Button */}

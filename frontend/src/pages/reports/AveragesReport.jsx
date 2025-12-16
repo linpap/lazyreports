@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ChevronDown, ChevronUp, RefreshCw, Printer, TrendingUp, TrendingDown } from 'lucide-react';
 import { analyticsApi, domainsApi } from '../../services/api';
 import { useFilterStore } from '../../store/filterStore';
+import OfferSelector from '../../components/common/OfferSelector';
 
 // Format number with commas
 const formatNumber = (value) => {
@@ -173,10 +174,8 @@ export default function AveragesReport() {
 
   const weeklyData = data?.data?.data || { current: [], averages: [] };
 
-  const handleDomainChange = (e) => {
-    const dkey = e.target.value;
-    const domain = domains.find((d) => d.dkey === dkey);
-    setSelectedDomain(dkey, domain?.name || '');
+  const handleDomainChange = (dkey, name) => {
+    setSelectedDomain(dkey, name);
   };
 
   // Day order for table (Sunday to Saturday as shown in PHP)
@@ -244,24 +243,12 @@ export default function AveragesReport() {
           <div className="flex items-center gap-4">
             <label className="text-sm font-medium text-secondary-700">Offers:</label>
             {domains.length > 0 && (
-              <div className="relative">
-                <select
-                  value={selectedDkey || ''}
-                  onChange={handleDomainChange}
-                  className="appearance-none bg-white border border-secondary-300 rounded-lg px-4 py-2 pr-10 text-sm font-medium text-secondary-700 hover:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent cursor-pointer min-w-[250px]"
-                  disabled={domainsLoading}
-                >
-                  <option value="" disabled>
-                    Select Offer
-                  </option>
-                  {domains.map((domain) => (
-                    <option key={domain.dkey} value={domain.dkey}>
-                      {domain.name}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-secondary-400 pointer-events-none" />
-              </div>
+              <OfferSelector
+                domains={domains}
+                selectedDkey={selectedDkey}
+                onChange={handleDomainChange}
+                disabled={domainsLoading}
+              />
             )}
           </div>
 
