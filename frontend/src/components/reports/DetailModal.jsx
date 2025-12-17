@@ -1,6 +1,6 @@
 import { useEffect, useState, Fragment } from 'react';
 import { X, Download, ArrowLeft, Plus, Minus, Search } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { analyticsApi } from '../../services/api';
 
 const DETAIL_COLUMNS = {
@@ -435,7 +435,7 @@ export default function DetailModal({ isOpen, onClose, type, filters, queryParam
     enabled: isOpen,
     staleTime: 0, // Always consider data stale
     refetchOnMount: 'always', // Refetch every time modal opens
-    keepPreviousData: true, // Keep showing old data while fetching new page
+    placeholderData: keepPreviousData, // Keep showing old data while fetching new page (v5 API)
   });
 
   const details = data?.data?.data || [];
