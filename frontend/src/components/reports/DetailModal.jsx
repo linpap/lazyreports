@@ -353,7 +353,7 @@ function ExpandedRowDetail({ visitorId, actionId, dkey }) {
   );
 }
 
-const PAGE_SIZE_OPTIONS = [25, 50, 100, 200];
+const PAGE_SIZE_OPTIONS = [25, 50, 100];
 const DEFAULT_PAGE_SIZE = 25;
 
 export default function DetailModal({ isOpen, onClose, type, filters, queryParams }) {
