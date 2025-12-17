@@ -829,23 +829,28 @@ export const getAnalyticsDetail = async (req, res, next) => {
       params.push(searchTerm, searchTerm, searchTerm);
     }
 
+    const limitNum = parseInt(limit);
+    const offsetNum = parseInt(offset);
+
     sql += ` ORDER BY ${type === 'visitors' ? 'v' : type === 'engaged' ? 'v' : 'a'}.date_created DESC`;
-    sql += ` LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}`;
+    // Fetch one extra record to determine if there are more pages
+    sql += ` LIMIT ${limitNum + 1} OFFSET ${offsetNum}`;
 
     // Execute main query only - skip count query for performance
     const [rows] = await db.query(sql, params);
 
-    // Return hasMore instead of total count for efficient pagination
-    const limitNum = parseInt(limit);
-    const hasMore = rows.length === limitNum;
+    // Check if we got more than limit - indicates more records exist
+    const hasMore = rows.length > limitNum;
+    // Only return the requested number of records
+    const data = hasMore ? rows.slice(0, limitNum) : rows;
 
     res.json({
       success: true,
-      data: rows,
+      data: data,
       total: -1, // Not calculated for performance
       hasMore: hasMore,
       limit: limitNum,
-      offset: parseInt(offset)
+      offset: offsetNum
     });
   } catch (error) {
     next(error);
