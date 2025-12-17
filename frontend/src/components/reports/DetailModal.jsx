@@ -353,12 +353,14 @@ function ExpandedRowDetail({ visitorId, actionId, dkey }) {
   );
 }
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE_OPTIONS = [25, 50, 100, 200];
+const DEFAULT_PAGE_SIZE = 25;
 
 export default function DetailModal({ isOpen, onClose, type, filters, queryParams }) {
   const [subDetail, setSubDetail] = useState({ isOpen: false, type: null, id: null });
   const [expandedRows, setExpandedRows] = useState(new Set());
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
@@ -420,15 +422,15 @@ export default function DetailModal({ isOpen, onClose, type, filters, queryParam
     };
   }, [isOpen]);
 
-  const offset = (currentPage - 1) * PAGE_SIZE;
+  const offset = (currentPage - 1) * pageSize;
 
   const { data, isLoading, isFetching, error } = useQuery({
-    queryKey: ['detail-report', type, filters, queryParams, currentPage, debouncedSearch],
+    queryKey: ['detail-report', type, filters, queryParams, currentPage, pageSize, debouncedSearch],
     queryFn: () => analyticsApi.getAnalyticsDetail({
       ...queryParams,
       ...filters,
       type,
-      limit: PAGE_SIZE,
+      limit: pageSize,
       offset,
       search: debouncedSearch || undefined
     }),
@@ -439,7 +441,7 @@ export default function DetailModal({ isOpen, onClose, type, filters, queryParam
   });
 
   const details = data?.data?.data || [];
-  const hasMore = data?.data?.hasMore ?? (details.length === PAGE_SIZE);
+  const hasMore = data?.data?.hasMore ?? (details.length === pageSize);
   // Only show full loading on initial load, not on pagination
   const showFullLoading = isLoading && details.length === 0;
 
@@ -618,10 +620,28 @@ export default function DetailModal({ isOpen, onClose, type, filters, queryParam
 
           {/* Footer with Pagination */}
           <div className="px-6 py-4 border-t border-secondary-200 flex items-center justify-between">
-            <span className="text-sm text-secondary-500">
-              Showing {details.length > 0 ? offset + 1 : 0} - {offset + details.length} records
-              {hasMore && ' (more available)'}
-            </span>
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-secondary-500">
+                Showing {details.length > 0 ? offset + 1 : 0} - {offset + details.length} records
+                {hasMore && ' (more available)'}
+              </span>
+              {/* Page Size Selector */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-secondary-500">Rows:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setCurrentPage(1); // Reset to first page when changing page size
+                  }}
+                  className="text-sm border border-secondary-300 rounded px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+                >
+                  {PAGE_SIZE_OPTIONS.map(size => (
+                    <option key={size} value={size}>{size}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
 
             {/* Pagination Controls */}
             <div className="flex items-center gap-2">
