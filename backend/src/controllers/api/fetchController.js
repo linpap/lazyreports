@@ -738,7 +738,8 @@ export const getAnalyticsDetail = async (req, res, next) => {
         WHERE v.is_bot = 0
       `;
     } else if (type === 'engaged') {
-      // Show unique visitors who have MORE than one action (2+ actions = engaged)
+      // Optimized: Show visitors who have action > 1 (meaning they have 2+ actions)
+      // Join with landing action (action=1) for page name, and filter by having action > 1
       sql = `
         SELECT
           CASE
@@ -749,17 +750,19 @@ export const getAnalyticsDetail = async (req, res, next) => {
                         MOD(TIMESTAMPDIFF(MINUTE, v.date_created, NOW()), 60), ' minutes')
             ELSE CONCAT(TIMESTAMPDIFF(DAY, v.date_created, NOW()), ' days')
           END as since_visit,
-          (SELECT a2.name FROM ${tenantDb}.action a2 WHERE a2.pkey = v.pkey ORDER BY a2.action LIMIT 1) as page,
+          landing.name as page,
           v.pkey as visitor_id,
-          MIN(a.pkey) as action_id,
-          COUNT(a.pkey) as total_actions,
+          v.pkey as action_id,
+          MAX(a.action) as total_actions,
           COALESCE(SUM(a.revenue), 0) as revenue,
           v.channel,
           v.subchannel,
           v.channel as keyword
         FROM ${tenantDb}.visit v
         JOIN ${tenantDb}.action a ON a.pkey = v.pkey
+        LEFT JOIN ${tenantDb}.action landing ON landing.pkey = v.pkey AND landing.action = 1
         WHERE v.is_bot = 0
+          AND EXISTS (SELECT 1 FROM ${tenantDb}.action a2 WHERE a2.pkey = v.pkey AND a2.action > 1 LIMIT 1)
       `;
     } else if (type === 'sales') {
       sql = `
@@ -829,10 +832,8 @@ export const getAnalyticsDetail = async (req, res, next) => {
     }
 
     // For engaged type, we need GROUP BY since we're aggregating per visitor
-    // HAVING COUNT > 1 ensures we only get visitors with MORE than one action
     if (type === 'engaged') {
-      sql += ' GROUP BY v.pkey, v.date_created, v.channel, v.subchannel';
-      sql += ' HAVING COUNT(a.pkey) > 1';
+      sql += ' GROUP BY v.pkey, v.date_created, v.channel, v.subchannel, landing.name';
     }
 
     // Build count query before adding ORDER BY and LIMIT
@@ -840,11 +841,10 @@ export const getAnalyticsDetail = async (req, res, next) => {
     if (type === 'visitors') {
       countSql = `SELECT COUNT(*) as total FROM ${tenantDb}.visit v WHERE v.is_bot = 0`;
     } else if (type === 'engaged') {
-      // For engaged, we count distinct visitors with 2+ actions
-      countSql = `SELECT COUNT(*) as total FROM (
-        SELECT v.pkey FROM ${tenantDb}.visit v
-        JOIN ${tenantDb}.action a ON a.pkey = v.pkey
-        WHERE v.is_bot = 0`;
+      // Optimized: count visitors that have action > 1 (2+ actions)
+      countSql = `SELECT COUNT(DISTINCT v.pkey) as total FROM ${tenantDb}.visit v
+        WHERE v.is_bot = 0
+          AND EXISTS (SELECT 1 FROM ${tenantDb}.action a2 WHERE a2.pkey = v.pkey AND a2.action > 1 LIMIT 1)`;
     } else if (type === 'sales') {
       countSql = `SELECT COUNT(*) as total FROM ${tenantDb}.action a
         JOIN ${tenantDb}.visit v ON a.pkey = v.pkey
@@ -879,10 +879,7 @@ export const getAnalyticsDetail = async (req, res, next) => {
       countParams.push(searchTerm, searchTerm, searchTerm);
     }
 
-    // Complete the engaged count query
-    if (type === 'engaged') {
-      countSql += ' GROUP BY v.pkey HAVING COUNT(a.pkey) > 1) as engaged_visitors';
-    }
+    // No additional completion needed for engaged count query (already complete)
 
     sql += ` ORDER BY ${type === 'visitors' ? 'v' : type === 'engaged' ? 'v' : 'a'}.date_created DESC`;
     sql += ` LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}`;
