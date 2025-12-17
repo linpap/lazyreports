@@ -439,8 +439,7 @@ export default function DetailModal({ isOpen, onClose, type, filters, queryParam
   });
 
   const details = data?.data?.data || [];
-  const totalCount = data?.data?.total || details.length;
-  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+  const hasMore = data?.data?.hasMore ?? (details.length === PAGE_SIZE);
   const columns = DETAIL_COLUMNS[type] || DETAIL_COLUMNS.visitors;
   const title = TITLES[type] || 'Details';
 
@@ -611,7 +610,8 @@ export default function DetailModal({ isOpen, onClose, type, filters, queryParam
           {/* Footer with Pagination */}
           <div className="px-6 py-4 border-t border-secondary-200 flex items-center justify-between">
             <span className="text-sm text-secondary-500">
-              Showing {details.length > 0 ? offset + 1 : 0} - {offset + details.length} of {totalCount} records
+              Showing {details.length > 0 ? offset + 1 : 0} - {offset + details.length} records
+              {hasMore && ' (more available)'}
             </span>
 
             {/* Pagination Controls */}
@@ -631,21 +631,14 @@ export default function DetailModal({ isOpen, onClose, type, filters, queryParam
                 Prev
               </button>
               <span className="px-3 py-1 text-sm text-secondary-700">
-                Page {currentPage} of {totalPages || 1}
+                Page {currentPage}
               </span>
               <button
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage(p => p + 1)}
+                disabled={!hasMore}
                 className="px-3 py-1 text-sm font-medium text-secondary-600 bg-secondary-100 hover:bg-secondary-200 rounded disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Next
-              </button>
-              <button
-                onClick={() => setCurrentPage(totalPages)}
-                disabled={currentPage >= totalPages}
-                className="px-2 py-1 text-sm font-medium text-secondary-600 bg-secondary-100 hover:bg-secondary-200 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Last
               </button>
             </div>
 

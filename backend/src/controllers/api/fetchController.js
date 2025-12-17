@@ -833,16 +833,19 @@ export const getAnalyticsDetail = async (req, res, next) => {
     sql += ` LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}`;
 
     // Execute main query only - skip count query for performance
-    // Count queries on large tables are slow; frontend can handle pagination without exact total
     const [rows] = await db.query(sql, params);
 
-    // Return -1 to indicate count not available (frontend should handle this gracefully)
-    const total = -1;
+    // Return hasMore instead of total count for efficient pagination
+    const limitNum = parseInt(limit);
+    const hasMore = rows.length === limitNum;
 
     res.json({
       success: true,
       data: rows,
-      total: total
+      total: -1, // Not calculated for performance
+      hasMore: hasMore,
+      limit: limitNum,
+      offset: parseInt(offset)
     });
   } catch (error) {
     next(error);
