@@ -752,7 +752,7 @@ export const getAnalyticsDetail = async (req, res, next) => {
           END as since_visit,
           a.name as page,
           v.pkey as visitor_id,
-          a.pkey as action_id,
+          a.hash as action_id,
           a.action as total_actions,
           0 as revenue,
           v.channel,
