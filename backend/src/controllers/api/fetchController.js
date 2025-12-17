@@ -1091,7 +1091,7 @@ export const getActionDetail = async (req, res, next) => {
       LEFT JOIN lazysauce.ip ip ON v.ip = ip.address
       LEFT JOIN lazysauce.domain dom ON dom.dkey = ?
       LEFT JOIN lazysauce.device d ON v.did = d.did
-      WHERE a.pkey = ?
+      WHERE a.hash = ?
     `, [tenantDkey, id]);
 
     if (actions.length === 0) {
