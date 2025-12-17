@@ -10,7 +10,7 @@
     "build": "npm run build:frontend",
     "build:frontend": "cd frontend && npm install && npm run build",
     "dev": "cd frontend && npm run dev",
-    "vercel-build": "cd frontend && npm install && npm run build"
+    "vercel-build": "cd frontend && npm install --include=dev && npm run build"
   },
   "dependencies": {
     "express": "^4.18.2",
