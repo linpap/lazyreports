@@ -1,8 +1,10 @@
 import mysql from 'mysql2/promise';
-import dotenv from 'dotenv';
 
-// Load env vars (in case not loaded yet)
-dotenv.config();
+// Note: dotenv is not used in Vercel - env vars are injected directly
+// Only load dotenv in local development
+if (process.env.NODE_ENV !== 'production') {
+  import('dotenv').then(dotenv => dotenv.config()).catch(() => {});
+}
 
 // Debug: Log database names
 console.log('DB_NAME:', process.env.DB_NAME);
