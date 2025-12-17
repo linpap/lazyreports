@@ -696,7 +696,11 @@ export const getAnalyticsDetail = async (req, res, next) => {
       limit = 100,
       offset = 0,
       dkey,
-      timezone // User's timezone
+      timezone, // User's timezone
+      variant, // Filter by variant
+      page, // Filter by page name
+      landing_page_variant, // Filter by landing page + variant combo (format: "PageName - Variant: VariantName")
+      label // Generic label filter (used when drilling down from report)
     } = req.query;
 
     // Get timezone from query param or user profile
@@ -829,6 +833,45 @@ export const getAnalyticsDetail = async (req, res, next) => {
     if (keyword) {
       sql += ' AND v.channel = ?';
       params.push(keyword);
+    }
+
+    // Variant/page filters for drill-down from report
+    if (variant) {
+      sql += ' AND a.variant = ?';
+      params.push(variant);
+    }
+
+    if (page) {
+      sql += ' AND a.name = ?';
+      params.push(page);
+    }
+
+    // Landing page variant filter (format: "PageName - Variant: VariantName")
+    if (landing_page_variant || label) {
+      const filterValue = landing_page_variant || label;
+      // Parse the combined format
+      const match = filterValue.match(/^(.+?)\s*-\s*Variant:\s*(.+)$/);
+      if (match) {
+        const [, pageName, variantName] = match;
+        // Need to join with landing action (action=1) to filter
+        sql += ` AND EXISTS (
+          SELECT 1 FROM ${tenantDb}.action landing
+          WHERE landing.pkey = v.pkey
+          AND landing.action = 1
+          AND landing.name = ?
+          AND landing.variant = ?
+        )`;
+        params.push(pageName.trim(), variantName.trim());
+      } else {
+        // Just filter by the label as page name
+        sql += ` AND EXISTS (
+          SELECT 1 FROM ${tenantDb}.action landing
+          WHERE landing.pkey = v.pkey
+          AND landing.action = 1
+          AND landing.name = ?
+        )`;
+        params.push(filterValue);
+      }
     }
 
     // Search filter - search across multiple fields
