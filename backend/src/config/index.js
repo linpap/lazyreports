@@ -1,8 +1,6 @@
-import dotenv from 'dotenv';
-
 // Load environment variables (only needed for local dev, Vercel injects directly)
 if (process.env.NODE_ENV !== 'production') {
-  dotenv.config();
+  import('dotenv').then(dotenv => dotenv.config()).catch(() => {});
 }
 
 const config = {
