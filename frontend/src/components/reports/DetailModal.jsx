@@ -422,7 +422,7 @@ export default function DetailModal({ isOpen, onClose, type, filters, queryParam
 
   const offset = (currentPage - 1) * PAGE_SIZE;
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, isFetching, error } = useQuery({
     queryKey: ['detail-report', type, filters, queryParams, currentPage, debouncedSearch],
     queryFn: () => analyticsApi.getAnalyticsDetail({
       ...queryParams,
@@ -440,6 +440,8 @@ export default function DetailModal({ isOpen, onClose, type, filters, queryParam
 
   const details = data?.data?.data || [];
   const hasMore = data?.data?.hasMore ?? (details.length === PAGE_SIZE);
+  // Only show full loading on initial load, not on pagination
+  const showFullLoading = isLoading && details.length === 0;
 
   const columns = DETAIL_COLUMNS[type] || DETAIL_COLUMNS.visitors;
   const title = TITLES[type] || 'Details';
@@ -503,8 +505,14 @@ export default function DetailModal({ isOpen, onClose, type, filters, queryParam
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-auto p-6">
-            {isLoading ? (
+          <div className="flex-1 overflow-auto p-6 relative">
+            {/* Loading overlay for pagination - shows over existing content */}
+            {isFetching && !showFullLoading && (
+              <div className="absolute inset-0 bg-white/50 flex items-center justify-center z-10">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500"></div>
+              </div>
+            )}
+            {showFullLoading ? (
               <div className="flex items-center justify-center py-12">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
                 <span className="ml-3 text-secondary-600">Loading details...</span>
