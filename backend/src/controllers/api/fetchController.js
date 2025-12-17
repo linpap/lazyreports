@@ -789,15 +789,15 @@ export const getAnalyticsDetail = async (req, res, next) => {
       return res.json({ success: true, data: [] });
     }
 
-    // Date filters
+    // Date filters - use range comparison to allow index usage (avoid DATE() function)
     if (startDate) {
-      sql += ' AND DATE(v.date_created) >= ?';
-      params.push(startDate);
+      sql += ' AND v.date_created >= ?';
+      params.push(`${startDate} 00:00:00`);
     }
 
     if (endDate) {
-      sql += ' AND DATE(v.date_created) <= ?';
-      params.push(endDate);
+      sql += ' AND v.date_created <= ?';
+      params.push(`${endDate} 23:59:59`);
     }
 
     // Additional filters
@@ -829,60 +829,15 @@ export const getAnalyticsDetail = async (req, res, next) => {
       params.push(searchTerm, searchTerm, searchTerm);
     }
 
-    // No GROUP BY needed for engaged - we query action=2 directly
-
-    // Build count query before adding ORDER BY and LIMIT
-    let countSql;
-    if (type === 'visitors') {
-      countSql = `SELECT COUNT(*) as total FROM ${tenantDb}.visit v WHERE v.is_bot = 0`;
-    } else if (type === 'engaged') {
-      // Optimized: count actions where action=2 (visitors with 2+ actions)
-      countSql = `SELECT COUNT(*) as total FROM ${tenantDb}.action a
-        JOIN ${tenantDb}.visit v ON v.pkey = a.pkey
-        WHERE v.is_bot = 0 AND a.action = 2`;
-    } else if (type === 'sales') {
-      countSql = `SELECT COUNT(*) as total FROM ${tenantDb}.action a
-        JOIN ${tenantDb}.visit v ON a.pkey = v.pkey
-        WHERE v.is_bot = 0 AND a.revenue > 0`;
-    }
-
-    // Add same filters to count query
-    const countParams = [];
-    if (startDate) {
-      countSql += ' AND DATE(v.date_created) >= ?';
-      countParams.push(startDate);
-    }
-    if (endDate) {
-      countSql += ' AND DATE(v.date_created) <= ?';
-      countParams.push(endDate);
-    }
-    if (channel) {
-      countSql += ' AND v.channel = ?';
-      countParams.push(channel);
-    }
-    if (subchannel) {
-      countSql += ' AND v.subchannel = ?';
-      countParams.push(subchannel);
-    }
-    if (keyword) {
-      countSql += ' AND v.channel = ?';
-      countParams.push(keyword);
-    }
-    if (search && search.trim()) {
-      const searchTerm = `%${search.trim()}%`;
-      countSql += ' AND (v.pkey LIKE ? OR v.channel LIKE ? OR v.subchannel LIKE ?)';
-      countParams.push(searchTerm, searchTerm, searchTerm);
-    }
-
-    // No additional completion needed for engaged count query (already complete)
-
     sql += ` ORDER BY ${type === 'visitors' ? 'v' : type === 'engaged' ? 'v' : 'a'}.date_created DESC`;
     sql += ` LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}`;
 
-    // Execute both queries
+    // Execute main query only - skip count query for performance
+    // Count queries on large tables are slow; frontend can handle pagination without exact total
     const [rows] = await db.query(sql, params);
-    const [countResult] = await db.query(countSql, countParams);
-    const total = countResult[0]?.total || 0;
+
+    // Return -1 to indicate count not available (frontend should handle this gracefully)
+    const total = -1;
 
     res.json({
       success: true,
