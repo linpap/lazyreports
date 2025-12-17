@@ -165,6 +165,10 @@ export default function AnalyticsReport() {
     if (row.country) rowFilters.country = row.country;
     if (row.keyword) rowFilters.keyword = row.keyword;
 
+    // Include label for drill-down (contains landing_page_variant, page name, etc.)
+    if (row.label) rowFilters.label = row.label;
+    if (row.grouping && !row.label) rowFilters.label = row.grouping;
+
     setDetailModal({
       isOpen: true,
       type,
