@@ -547,23 +547,23 @@ export const getAnalyticsReport = async (req, res, next) => {
     // Always join IP table for fraud detection
     const alwaysNeedsIpJoin = true;
 
-    // Subquery to count actions per visitor (for engaged = visitors with 2+ actions)
+    // Optimized query - use action.action column (action order) to determine engaged
+    // If a visitor has an action with action > 1, they have 2+ actions (engaged)
     let sql = `
       SELECT
         ${groupColumns[0]} as label,
         ${groupSelectParts.join(',\n        ')},
         COUNT(DISTINCT v.pkey) as visitors,
-        COUNT(DISTINCT CASE WHEN action_counts.action_count > 1 THEN v.pkey END) as engaged,
-        ROUND(COUNT(DISTINCT CASE WHEN action_counts.action_count > 1 THEN v.pkey END) / COUNT(DISTINCT v.pkey) * 100, 2) as engage_rate,
+        COUNT(DISTINCT CASE WHEN a.action > 1 THEN v.pkey END) as engaged,
+        ROUND(COUNT(DISTINCT CASE WHEN a.action > 1 THEN v.pkey END) / NULLIF(COUNT(DISTINCT v.pkey), 0) * 100, 2) as engage_rate,
         COUNT(DISTINCT CASE WHEN a.revenue > 0 THEN v.pkey END) as sales,
-        ROUND(COUNT(DISTINCT CASE WHEN a.revenue > 0 THEN v.pkey END) / COUNT(DISTINCT v.pkey) * 100, 2) as sales_rate,
+        ROUND(COUNT(DISTINCT CASE WHEN a.revenue > 0 THEN v.pkey END) / NULLIF(COUNT(DISTINCT v.pkey), 0) * 100, 2) as sales_rate,
         COALESCE(SUM(a.revenue), 0) as revenue,
         ROUND(COALESCE(SUM(a.revenue) / NULLIF(COUNT(CASE WHEN a.revenue > 0 THEN 1 END), 0), 0), 2) as aov,
         ROUND(COALESCE(SUM(a.revenue) / NULLIF(COUNT(DISTINCT v.pkey), 0), 0), 4) as epc,
         ROUND(COALESCE(SUM(CASE WHEN ip.is_proxy = 1 OR ip.is_crawler = 1 OR COALESCE(ip.threat_level, 0) > 0 THEN 1 ELSE 0 END) / NULLIF(COUNT(DISTINCT v.pkey), 0) * 100, 0), 2) as fraud
       FROM ${tenantDb}.visit v
       LEFT JOIN ${tenantDb}.action a ON v.pkey = a.pkey
-      LEFT JOIN (SELECT pkey, COUNT(*) as action_count FROM ${tenantDb}.action GROUP BY pkey) action_counts ON v.pkey = action_counts.pkey
       ${alwaysNeedsIpJoin || needsIpJoin ? 'LEFT JOIN lazysauce.ip ip ON v.ip = ip.address' : ''}
       ${needsDeviceJoin ? 'LEFT JOIN lazysauce.device d ON v.device_id = d.id' : ''}
       ${needsLandingPageJoin ? `LEFT JOIN ${tenantDb}.action landing_action ON v.pkey = landing_action.pkey AND landing_action.action = 1` : ''}
