@@ -444,7 +444,7 @@ export default function DetailModal({ isOpen, onClose, type, filters, queryParam
   const details = data?.data?.data || [];
   const hasMore = data?.data?.hasMore ?? (details.length === PAGE_SIZE);
 
-  console.log('Pagination debug:', { detailsLength: details.length, hasMore, PAGE_SIZE, rawHasMore: data?.data?.hasMore });
+  console.log('Pagination debug:', { currentPage, offset, detailsLength: details.length, hasMore, PAGE_SIZE, rawHasMore: data?.data?.hasMore });
 
   const columns = DETAIL_COLUMNS[type] || DETAIL_COLUMNS.visitors;
   const title = TITLES[type] || 'Details';
@@ -640,7 +640,10 @@ export default function DetailModal({ isOpen, onClose, type, filters, queryParam
                 Page {currentPage}
               </span>
               <button
-                onClick={() => setCurrentPage(p => p + 1)}
+                onClick={() => {
+                  console.log('Next clicked, current page:', currentPage, 'hasMore:', hasMore);
+                  setCurrentPage(p => p + 1);
+                }}
                 disabled={!hasMore}
                 className="px-3 py-1 text-sm font-medium text-secondary-600 bg-secondary-100 hover:bg-secondary-200 rounded disabled:opacity-50 disabled:cursor-not-allowed"
               >
