@@ -438,8 +438,14 @@ export default function DetailModal({ isOpen, onClose, type, filters, queryParam
     keepPreviousData: true, // Keep showing old data while fetching new page
   });
 
+  // Debug: log the response structure
+  console.log('Detail API response:', data?.data);
+
   const details = data?.data?.data || [];
   const hasMore = data?.data?.hasMore ?? (details.length === PAGE_SIZE);
+
+  console.log('Pagination debug:', { detailsLength: details.length, hasMore, PAGE_SIZE, rawHasMore: data?.data?.hasMore });
+
   const columns = DETAIL_COLUMNS[type] || DETAIL_COLUMNS.visitors;
   const title = TITLES[type] || 'Details';
 
