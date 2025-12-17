@@ -11,12 +11,16 @@ const api = axios.create({
   },
 });
 
-// Request interceptor - add auth token
+// Request interceptor - add auth token and timezone
 api.interceptors.request.use(
   (config) => {
-    const token = useAuthStore.getState().token;
+    const { token, user } = useAuthStore.getState();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+    // Add user's timezone to all requests with query params
+    if (user?.timezone && config.params) {
+      config.params.timezone = user.timezone;
     }
     return config;
   },

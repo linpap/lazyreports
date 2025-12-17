@@ -475,11 +475,14 @@ export const getAnalyticsReport = async (req, res, next) => {
       groupBy = 'channel', // Default grouping field
       dkey,
       includeBots = 'false',
-      usePostDate = 'false'
+      usePostDate = 'false',
+      timezone // User's timezone (e.g., 'America/New_York', '-05:00')
     } = req.query;
 
     const shouldIncludeBots = includeBots === 'true';
     const shouldUsePostDate = usePostDate === 'true';
+    // Get timezone from query param or user profile
+    const userTimezone = timezone || req.user?.timezone || '+00:00';
 
     const userId = req.user?.id;
     let tenantDkey = dkey;
@@ -573,15 +576,17 @@ export const getAnalyticsReport = async (req, res, next) => {
     const params = [];
 
     // Date filters - use post_date if specified, otherwise date_created
+    // Apply timezone conversion to match user's selected timezone
     const dateColumn = shouldUsePostDate ? 'v.post_date' : 'v.date_created';
+    const tzDateColumn = `CONVERT_TZ(${dateColumn}, '+00:00', '${userTimezone}')`;
 
     if (startDate) {
-      sql += ` AND DATE(${dateColumn}) >= ?`;
+      sql += ` AND DATE(${tzDateColumn}) >= ?`;
       params.push(startDate);
     }
 
     if (endDate) {
-      sql += ` AND DATE(${dateColumn}) <= ?`;
+      sql += ` AND DATE(${tzDateColumn}) <= ?`;
       params.push(endDate);
     }
 
@@ -690,9 +695,12 @@ export const getAnalyticsDetail = async (req, res, next) => {
       search,
       limit = 100,
       offset = 0,
-      dkey
+      dkey,
+      timezone // User's timezone
     } = req.query;
 
+    // Get timezone from query param or user profile
+    const userTimezone = timezone || req.user?.timezone || '+00:00';
     const userId = req.user?.id;
     let tenantDkey = dkey;
 
@@ -789,15 +797,16 @@ export const getAnalyticsDetail = async (req, res, next) => {
       return res.json({ success: true, data: [] });
     }
 
-    // Date filters - use range comparison to allow index usage (avoid DATE() function)
+    // Date filters with timezone conversion
+    const tzDateColumn = `CONVERT_TZ(v.date_created, '+00:00', '${userTimezone}')`;
     if (startDate) {
-      sql += ' AND v.date_created >= ?';
-      params.push(`${startDate} 00:00:00`);
+      sql += ` AND DATE(${tzDateColumn}) >= ?`;
+      params.push(startDate);
     }
 
     if (endDate) {
-      sql += ' AND v.date_created <= ?';
-      params.push(`${endDate} 23:59:59`);
+      sql += ` AND DATE(${tzDateColumn}) <= ?`;
+      params.push(endDate);
     }
 
     // Additional filters
