@@ -738,8 +738,8 @@ export const getAnalyticsDetail = async (req, res, next) => {
         WHERE v.is_bot = 0
       `;
     } else if (type === 'engaged') {
-      // Optimized: Show visitors who have action > 1 (meaning they have 2+ actions)
-      // Join with landing action (action=1) for page name, and filter by having action > 1
+      // Highly optimized: Query action table directly for visitors with action > 1
+      // This avoids scanning the entire visit table
       sql = `
         SELECT
           CASE
@@ -750,19 +750,17 @@ export const getAnalyticsDetail = async (req, res, next) => {
                         MOD(TIMESTAMPDIFF(MINUTE, v.date_created, NOW()), 60), ' minutes')
             ELSE CONCAT(TIMESTAMPDIFF(DAY, v.date_created, NOW()), ' days')
           END as since_visit,
-          landing.name as page,
+          a.name as page,
           v.pkey as visitor_id,
           v.pkey as action_id,
-          MAX(a.action) as total_actions,
-          COALESCE(SUM(a.revenue), 0) as revenue,
+          a.action as total_actions,
+          0 as revenue,
           v.channel,
           v.subchannel,
           v.channel as keyword
-        FROM ${tenantDb}.visit v
-        JOIN ${tenantDb}.action a ON a.pkey = v.pkey
-        LEFT JOIN ${tenantDb}.action landing ON landing.pkey = v.pkey AND landing.action = 1
-        WHERE v.is_bot = 0
-          AND EXISTS (SELECT 1 FROM ${tenantDb}.action a2 WHERE a2.pkey = v.pkey AND a2.action > 1 LIMIT 1)
+        FROM ${tenantDb}.action a
+        JOIN ${tenantDb}.visit v ON v.pkey = a.pkey
+        WHERE v.is_bot = 0 AND a.action = 2
       `;
     } else if (type === 'sales') {
       sql = `
@@ -831,20 +829,17 @@ export const getAnalyticsDetail = async (req, res, next) => {
       params.push(searchTerm, searchTerm, searchTerm);
     }
 
-    // For engaged type, we need GROUP BY since we're aggregating per visitor
-    if (type === 'engaged') {
-      sql += ' GROUP BY v.pkey, v.date_created, v.channel, v.subchannel, landing.name';
-    }
+    // No GROUP BY needed for engaged - we query action=2 directly
 
     // Build count query before adding ORDER BY and LIMIT
     let countSql;
     if (type === 'visitors') {
       countSql = `SELECT COUNT(*) as total FROM ${tenantDb}.visit v WHERE v.is_bot = 0`;
     } else if (type === 'engaged') {
-      // Optimized: count visitors that have action > 1 (2+ actions)
-      countSql = `SELECT COUNT(DISTINCT v.pkey) as total FROM ${tenantDb}.visit v
-        WHERE v.is_bot = 0
-          AND EXISTS (SELECT 1 FROM ${tenantDb}.action a2 WHERE a2.pkey = v.pkey AND a2.action > 1 LIMIT 1)`;
+      // Optimized: count actions where action=2 (visitors with 2+ actions)
+      countSql = `SELECT COUNT(*) as total FROM ${tenantDb}.action a
+        JOIN ${tenantDb}.visit v ON v.pkey = a.pkey
+        WHERE v.is_bot = 0 AND a.action = 2`;
     } else if (type === 'sales') {
       countSql = `SELECT COUNT(*) as total FROM ${tenantDb}.action a
         JOIN ${tenantDb}.visit v ON a.pkey = v.pkey
