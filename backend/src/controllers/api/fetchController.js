@@ -659,10 +659,36 @@ export const getAnalyticsReport = async (req, res, next) => {
 
     const [rows] = await db.execute(sql, params);
 
+    // Add detail links to each row with the label/variant filter
+    const baseDetailUrl = '/api/analytics/detail';
+    const rowsWithLinks = rows.map(row => {
+      const label = encodeURIComponent(row.label || '');
+      const baseParams = `startDate=${startDate}&endDate=${endDate}&dkey=${tenantDkey}&label=${label}`;
+      if (userTimezone) {
+        const tzParam = `&timezone=${encodeURIComponent(userTimezone)}`;
+        return {
+          ...row,
+          links: {
+            visitors: `${baseDetailUrl}?${baseParams}&type=visitors${tzParam}`,
+            engaged: `${baseDetailUrl}?${baseParams}&type=engaged${tzParam}`,
+            sales: `${baseDetailUrl}?${baseParams}&type=sales${tzParam}`
+          }
+        };
+      }
+      return {
+        ...row,
+        links: {
+          visitors: `${baseDetailUrl}?${baseParams}&type=visitors`,
+          engaged: `${baseDetailUrl}?${baseParams}&type=engaged`,
+          sales: `${baseDetailUrl}?${baseParams}&type=sales`
+        }
+      };
+    });
+
     // Build hierarchical data if multiple groupBy fields
-    let responseData = rows;
+    let responseData = rowsWithLinks;
     if (groupByFields.length > 1) {
-      responseData = buildHierarchicalData(rows, groupByFields);
+      responseData = buildHierarchicalData(rowsWithLinks, groupByFields);
     }
 
     res.json({
