@@ -762,6 +762,7 @@ export const getAnalyticsDetail = async (req, res, next) => {
       type = 'visitors', // visitors, engaged, sales
       channel,
       subchannel,
+      subchannel_stripped, // Filter by stripped subchannel (part before underscore)
       country,
       keyword,
       search,
@@ -772,7 +773,13 @@ export const getAnalyticsDetail = async (req, res, next) => {
       variant, // Filter by variant
       page, // Filter by page name
       landing_page_variant, // Filter by landing page + variant combo (format: "PageName - Variant: VariantName")
-      label // Generic label filter (used when drilling down from report)
+      label, // Generic label filter (used when drilling down from report)
+      // Additional groupBy field filters
+      state,
+      device_type,
+      os,
+      browser,
+      ip_org
     } = req.query;
 
     // Get timezone from query param or user profile
@@ -905,6 +912,12 @@ export const getAnalyticsDetail = async (req, res, next) => {
     if (keyword) {
       sql += ' AND v.channel = ?';
       params.push(keyword);
+    }
+
+    // Subchannel stripped filter (part before underscore)
+    if (subchannel_stripped) {
+      sql += ' AND SUBSTRING_INDEX(v.subchannel, "_", 1) = ?';
+      params.push(subchannel_stripped);
     }
 
     // Variant/page filters for drill-down from report
