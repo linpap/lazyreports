@@ -4,7 +4,6 @@ export const GROUP_BY_OPTIONS = [
   { id: 2, label: 'Subchannel (stripped)', field: 'subchannel_stripped' },
   { id: 3, label: 'Country', field: 'country' },
   { id: 4, label: 'Keyword', field: 'keyword' },
-  { id: 5, label: 'Rawword', field: 'rawword' },
   { id: 6, label: 'State', field: 'state' },
   { id: 7, label: 'Device Type', field: 'device_type' },
   { id: 8, label: 'Operating System', field: 'os' },
