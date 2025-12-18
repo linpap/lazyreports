@@ -659,22 +659,33 @@ export const getAnalyticsReport = async (req, res, next) => {
 
     const [rows] = await db.execute(sql, params);
 
-    // Add detail links to each row with the label/variant filter
+    // Add detail links to each row with groupBy field values as filters
     const baseDetailUrl = '/api/analytics/detail';
     const rowsWithLinks = rows.map(row => {
-      const label = encodeURIComponent(row.label || '');
-      const baseParams = `startDate=${startDate}&endDate=${endDate}&dkey=${tenantDkey}&label=${label}`;
-      if (userTimezone) {
-        const tzParam = `&timezone=${encodeURIComponent(userTimezone)}`;
-        return {
-          ...row,
-          links: {
-            visitors: `${baseDetailUrl}?${baseParams}&type=visitors${tzParam}`,
-            engaged: `${baseDetailUrl}?${baseParams}&type=engaged${tzParam}`,
-            sales: `${baseDetailUrl}?${baseParams}&type=sales${tzParam}`
-          }
-        };
+      // Build filter params from groupBy field values
+      const filterParams = [];
+      filterParams.push(`startDate=${startDate}`);
+      filterParams.push(`endDate=${endDate}`);
+      filterParams.push(`dkey=${tenantDkey}`);
+
+      // Add each groupBy field value as a filter parameter
+      groupByFields.forEach(field => {
+        if (row[field] !== undefined && row[field] !== null) {
+          filterParams.push(`${field}=${encodeURIComponent(row[field])}`);
+        }
+      });
+
+      // Also include label for complex groupings like landing_page_variant
+      if (row.label) {
+        filterParams.push(`label=${encodeURIComponent(row.label)}`);
       }
+
+      if (userTimezone) {
+        filterParams.push(`timezone=${encodeURIComponent(userTimezone)}`);
+      }
+
+      const baseParams = filterParams.join('&');
+
       return {
         ...row,
         links: {
