@@ -659,25 +659,50 @@ export const getAnalyticsReport = async (req, res, next) => {
 
     const [rows] = await db.execute(sql, params);
 
-    // Add detail links to each row with groupBy field values as filters
+    // Build hierarchical data if multiple groupBy fields
+    let responseData = rows;
+    if (groupByFields.length > 1) {
+      responseData = buildHierarchicalData(rows, groupByFields);
+    }
+
+    // Helper function to add links to a node, collecting all parent groupBy values
     const baseDetailUrl = '/api/analytics/detail';
-    const rowsWithLinks = rows.map(row => {
-      // Build filter params from groupBy field values
+    const addLinksToNode = (node, parentValues = {}) => {
+      // Build filter params from all groupBy field values
       const filterParams = [];
       filterParams.push(`startDate=${startDate}`);
       filterParams.push(`endDate=${endDate}`);
       filterParams.push(`dkey=${tenantDkey}`);
 
-      // Add each groupBy field value as a filter parameter
-      // Note: First field is aliased as 'label' in SQL, subsequent fields keep their names
+      // Collect all groupBy field values (from parents and current node)
+      const allValues = { ...parentValues };
+
+      // For flat data (single groupBy), use label for first field
+      // For hierarchical data, each node has its field value
       groupByFields.forEach((field, idx) => {
-        const columnName = idx === 0 ? 'label' : field;
-        const value = row[columnName];
-        if (value !== undefined && value !== null) {
-          // Use original field name in URL, not the alias
+        // Check if this node has the field value directly
+        if (node[field] !== undefined && node[field] !== null && node[field] !== '') {
+          allValues[field] = node[field];
+        } else if (idx === 0 && node.label !== undefined && node.label !== null && node.label !== '') {
+          // First field is aliased as 'label'
+          allValues[field] = node.label;
+        }
+      });
+
+      // Add all collected field values to params
+      groupByFields.forEach((field) => {
+        const value = allValues[field];
+        if (value !== undefined && value !== null && value !== '') {
           filterParams.push(`${field}=${encodeURIComponent(value)}`);
         }
       });
+
+      // Always include label for landing_page_variant filtering in detail endpoint
+      // Use the first groupBy field value (usually landing_page_variant)
+      const labelValue = allValues[groupByFields[0]] || node.label;
+      if (labelValue) {
+        filterParams.push(`label=${encodeURIComponent(labelValue)}`);
+      }
 
       if (userTimezone) {
         filterParams.push(`timezone=${encodeURIComponent(userTimezone)}`);
@@ -685,21 +710,22 @@ export const getAnalyticsReport = async (req, res, next) => {
 
       const baseParams = filterParams.join('&');
 
-      return {
-        ...row,
-        links: {
-          visitors: `${baseDetailUrl}?${baseParams}&type=visitors`,
-          engaged: `${baseDetailUrl}?${baseParams}&type=engaged`,
-          sales: `${baseDetailUrl}?${baseParams}&type=sales`
-        }
+      node.links = {
+        visitors: `${baseDetailUrl}?${baseParams}&type=visitors`,
+        engaged: `${baseDetailUrl}?${baseParams}&type=engaged`,
+        sales: `${baseDetailUrl}?${baseParams}&type=sales`
       };
-    });
 
-    // Build hierarchical data if multiple groupBy fields
-    let responseData = rowsWithLinks;
-    if (groupByFields.length > 1) {
-      responseData = buildHierarchicalData(rowsWithLinks, groupByFields);
-    }
+      // Recursively add links to children, passing down parent values
+      if (node.children && node.children.length > 0) {
+        node.children.forEach(child => {
+          addLinksToNode(child, allValues);
+        });
+      }
+    };
+
+    // Add links to all nodes
+    responseData.forEach(node => addLinksToNode(node, {}));
 
     res.json({
       success: true,
