@@ -669,16 +669,15 @@ export const getAnalyticsReport = async (req, res, next) => {
       filterParams.push(`dkey=${tenantDkey}`);
 
       // Add each groupBy field value as a filter parameter
-      groupByFields.forEach(field => {
-        if (row[field] !== undefined && row[field] !== null) {
-          filterParams.push(`${field}=${encodeURIComponent(row[field])}`);
+      // Note: First field is aliased as 'label' in SQL, subsequent fields keep their names
+      groupByFields.forEach((field, idx) => {
+        const columnName = idx === 0 ? 'label' : field;
+        const value = row[columnName];
+        if (value !== undefined && value !== null) {
+          // Use original field name in URL, not the alias
+          filterParams.push(`${field}=${encodeURIComponent(value)}`);
         }
       });
-
-      // Also include label for complex groupings like landing_page_variant
-      if (row.label) {
-        filterParams.push(`label=${encodeURIComponent(row.label)}`);
-      }
 
       if (userTimezone) {
         filterParams.push(`timezone=${encodeURIComponent(userTimezone)}`);
