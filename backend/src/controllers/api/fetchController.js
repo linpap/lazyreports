@@ -524,7 +524,7 @@ export const getAnalyticsReport = async (req, res, next) => {
       'keyword': 'v.target',
       'rawword': 'v.target',
       'state': 'ip.state',
-      'device_type': 'd.device_type',
+      'device_type': "CASE WHEN d.is_tablet = 1 THEN 'Tablet' WHEN d.is_smartphone = 1 THEN 'Smartphone' WHEN d.is_mobile = 1 THEN 'Mobile' ELSE 'Desktop' END",
       'os': 'd.os',
       'os_version': "CONCAT(d.os, ' ', d.os_version)",
       'browser': 'd.browser',
@@ -578,7 +578,7 @@ export const getAnalyticsReport = async (req, res, next) => {
       FROM ${tenantDb}.visit v
       LEFT JOIN ${tenantDb}.action a ON v.pkey = a.pkey
       ${alwaysNeedsIpJoin || needsIpJoin ? 'LEFT JOIN lazysauce.ip ip ON v.ip = ip.address' : ''}
-      ${needsDeviceJoin ? 'LEFT JOIN lazysauce.device d ON v.device_id = d.id' : ''}
+      ${needsDeviceJoin ? 'LEFT JOIN lazysauce.device d ON v.did = d.did' : ''}
       ${needsLandingPageJoin ? `LEFT JOIN ${tenantDb}.action landing_action ON v.pkey = landing_action.pkey AND landing_action.action = 1` : ''}
       WHERE 1=1
       ${shouldIncludeBots ? '' : ' AND v.is_bot = 0'}
