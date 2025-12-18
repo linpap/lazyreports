@@ -10,6 +10,7 @@ import OfferSelector from '../../components/common/OfferSelector';
 import GroupBySelector from '../../components/reports/GroupBySelector';
 import AnalyticsTable from '../../components/reports/AnalyticsTable';
 import DetailModal from '../../components/reports/DetailModal';
+import WorldMap from '../../components/reports/WorldMap';
 import { REPORT_COLUMNS, GROUP_BY_OPTIONS } from '../../constants/reportOptions';
 
 export default function AnalyticsReport() {
@@ -376,6 +377,11 @@ export default function AnalyticsReport() {
           </button>
         </div>
       </div>
+
+      {/* World Map - Show when grouping by country */}
+      {selectedGroups.length > 0 && selectedGroups[0].field === 'country' && !isLoading && reportData.length > 0 && (
+        <WorldMap data={reportData} />
+      )}
 
       {/* Report Table */}
       {error ? (
