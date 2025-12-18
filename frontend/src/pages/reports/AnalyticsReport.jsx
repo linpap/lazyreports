@@ -96,9 +96,10 @@ export default function AnalyticsReport() {
   const sortKey = `${sortConfig.key}-${sortConfig.direction}`;
   const optionsKey = `${reportOptions.usePostDate}-${reportOptions.includeBots}`;
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['analytics-report', startDate, endDate, selectedDkey, filtersKey, groupByKey, sortKey, optionsKey],
+    queryKey: ['analytics-report', startDate, endDate, selectedDkey, filtersKey, groupByKey, selectedGroups.length, sortKey, optionsKey],
     queryFn: () => analyticsApi.getAnalyticsReport(getFullQueryParams()),
     enabled: !!selectedDkey || domains.length === 0,
+    staleTime: 0, // Always consider data stale to ensure refetch on key change
   });
 
   // Check if response is hierarchical (multiple groupBy)
