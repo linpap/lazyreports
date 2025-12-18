@@ -805,6 +805,10 @@ export const getAnalyticsDetail = async (req, res, next) => {
     const tenantDb = `lazysauce_${tenantDkey}`;
     const db = pool;
 
+    // Check if we need IP table join for filters
+    const needsIpJoin = state || country || ip_org;
+    const ipJoin = needsIpJoin ? 'LEFT JOIN lazysauce.ip ip ON v.ip = ip.address' : '';
+
     let sql;
     const params = [];
 
@@ -826,6 +830,7 @@ export const getAnalyticsDetail = async (req, res, next) => {
           v.subchannel,
           v.channel as keyword
         FROM ${tenantDb}.visit v
+        ${ipJoin}
         WHERE v.is_bot = 0
       `;
     } else if (type === 'engaged') {
@@ -851,6 +856,7 @@ export const getAnalyticsDetail = async (req, res, next) => {
           v.channel as keyword
         FROM ${tenantDb}.action a
         JOIN ${tenantDb}.visit v ON v.pkey = a.pkey
+        ${ipJoin}
         WHERE v.is_bot = 0 AND a.action = 2
       `;
     } else if (type === 'sales') {
@@ -874,6 +880,7 @@ export const getAnalyticsDetail = async (req, res, next) => {
           v.channel as keyword
         FROM ${tenantDb}.action a
         JOIN ${tenantDb}.visit v ON a.pkey = v.pkey
+        ${ipJoin}
         WHERE v.is_bot = 0 AND a.revenue > 0
       `;
     } else {
@@ -903,11 +910,21 @@ export const getAnalyticsDetail = async (req, res, next) => {
       params.push(subchannel);
     }
 
-    // Country filter disabled - ip table not available in detail queries
-    // if (country) {
-    //   sql += ' AND ip.country = ?';
-    //   params.push(country);
-    // }
+    // IP-based filters (require IP table join)
+    if (country) {
+      sql += ' AND ip.country = ?';
+      params.push(country);
+    }
+
+    if (state) {
+      sql += ' AND ip.state = ?';
+      params.push(state);
+    }
+
+    if (ip_org) {
+      sql += ' AND ip.org = ?';
+      params.push(ip_org);
+    }
 
     if (keyword) {
       sql += ' AND v.target = ?';
