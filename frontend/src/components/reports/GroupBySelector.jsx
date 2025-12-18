@@ -1,15 +1,35 @@
-import { useState } from 'react';
-import { X, GripVertical, Plus, ChevronDown } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { X, GripVertical, Plus, ChevronDown, Search } from 'lucide-react';
 import { GROUP_BY_OPTIONS } from '../../constants/reportOptions';
 
 const MAX_GROUPINGS = 5;
 
 export default function GroupBySelector({ selectedGroups, onChange }) {
   const [showDropdown, setShowDropdown] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const searchInputRef = useRef(null);
 
   const availableOptions = GROUP_BY_OPTIONS.filter(
     opt => !selectedGroups.find(g => g.id === opt.id)
   );
+
+  const filteredOptions = availableOptions.filter(opt =>
+    opt.label.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Focus search input when dropdown opens
+  useEffect(() => {
+    if (showDropdown && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [showDropdown]);
+
+  // Clear search when dropdown closes
+  useEffect(() => {
+    if (!showDropdown) {
+      setSearchQuery('');
+    }
+  }, [showDropdown]);
 
   const handleAddGroup = (option) => {
     if (selectedGroups.length < MAX_GROUPINGS) {
@@ -95,16 +115,40 @@ export default function GroupBySelector({ selectedGroups, onChange }) {
           </button>
 
           {showDropdown && (
-            <div className="absolute z-20 mt-1 w-64 bg-white border border-secondary-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
-              {availableOptions.map((option) => (
-                <button
-                  key={option.id}
-                  onClick={() => handleAddGroup(option)}
-                  className="w-full px-4 py-2 text-left text-sm hover:bg-primary-50 text-secondary-700"
-                >
-                  {option.label}
-                </button>
-              ))}
+            <div className="absolute z-20 mt-1 w-72 bg-white border border-secondary-200 rounded-lg shadow-lg">
+              {/* Search Input */}
+              <div className="p-2 border-b border-secondary-100">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-secondary-400" />
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Type to search..."
+                    className="w-full pl-9 pr-3 py-2 text-sm border border-secondary-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              {/* Options List */}
+              <div className="max-h-52 overflow-y-auto">
+                {filteredOptions.length === 0 ? (
+                  <div className="px-4 py-3 text-sm text-secondary-500 italic">
+                    No matching options
+                  </div>
+                ) : (
+                  filteredOptions.map((option) => (
+                    <button
+                      key={option.id}
+                      onClick={() => handleAddGroup(option)}
+                      className="w-full px-4 py-2 text-left text-sm hover:bg-primary-50 text-secondary-700"
+                    >
+                      {option.label}
+                    </button>
+                  ))
+                )}
+              </div>
             </div>
           )}
         </div>
