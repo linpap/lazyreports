@@ -521,8 +521,8 @@ export const getAnalyticsReport = async (req, res, next) => {
       'subchannel': 'v.subchannel',
       'subchannel_stripped': 'SUBSTRING_INDEX(v.subchannel, "_", 1)',
       'country': 'ip.country',
-      'keyword': 'v.channel',
-      'rawword': 'v.channel',
+      'keyword': 'v.target',
+      'rawword': 'v.target',
       'state': 'ip.state',
       'device_type': 'd.device_type',
       'os': 'd.os',
@@ -910,7 +910,7 @@ export const getAnalyticsDetail = async (req, res, next) => {
     // }
 
     if (keyword) {
-      sql += ' AND v.channel = ?';
+      sql += ' AND v.target = ?';
       params.push(keyword);
     }
 
