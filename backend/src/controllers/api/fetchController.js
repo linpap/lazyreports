@@ -49,6 +49,11 @@ const buildHierarchicalData = (rows, groupByFields) => {
 
     // Build child hierarchy for remaining levels
     let currentLevel = grouped[level1Key];
+    // Track parent values for propagation to children
+    const parentValues = {
+      [groupByFields[0]]: row[groupByFields[0]]
+    };
+
     for (let i = 1; i < groupByFields.length; i++) {
       const field = groupByFields[i];
       const fieldValue = String(row[field] || 'Unknown');
@@ -59,6 +64,8 @@ const buildHierarchicalData = (rows, groupByFields) => {
           label: fieldValue,
           grouping: fieldValue,
           [field]: row[field],
+          // Propagate all parent groupBy values to children for filtering
+          ...parentValues,
           _level: i,
           _levelField: field,
           visitors: 0,
@@ -71,6 +78,9 @@ const buildHierarchicalData = (rows, groupByFields) => {
         currentLevel._childMap[fieldValue] = childNode;
         currentLevel.children.push(childNode);
       }
+
+      // Add current field to parentValues for next level
+      parentValues[field] = row[field];
 
       currentLevel = currentLevel._childMap[fieldValue];
 

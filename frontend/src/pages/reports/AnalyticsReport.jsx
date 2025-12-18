@@ -158,16 +158,24 @@ export default function AnalyticsReport() {
     const type = typeMap[columnKey];
     if (!type) return;
 
-    // Build filters from the row context
+    // Build filters from the row context - include all groupBy field values
     const rowFilters = {};
     if (row.channel) rowFilters.channel = row.channel;
     if (row.subchannel) rowFilters.subchannel = row.subchannel;
     if (row.country) rowFilters.country = row.country;
     if (row.keyword) rowFilters.keyword = row.keyword;
+    if (row.landing_page_variant) rowFilters.landing_page_variant = row.landing_page_variant;
+    if (row.landing_page) rowFilters.landing_page = row.landing_page;
 
     // Include label for drill-down (contains landing_page_variant, page name, etc.)
-    if (row.label) rowFilters.label = row.label;
-    if (row.grouping && !row.label) rowFilters.label = row.grouping;
+    // For hierarchical data, use landing_page_variant if available, otherwise use label
+    if (row.landing_page_variant) {
+      rowFilters.label = row.landing_page_variant;
+    } else if (row.label) {
+      rowFilters.label = row.label;
+    } else if (row.grouping) {
+      rowFilters.label = row.grouping;
+    }
 
     setDetailModal({
       isOpen: true,
