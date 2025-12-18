@@ -90,8 +90,10 @@ export default function AnalyticsReport() {
   }, [getQueryParams, activeFilters, selectedGroups, reportOptions]);
 
   // Fetch report data
+  // Serialize selectedGroups to ensure query key changes when groups change
+  const groupByKey = selectedGroups.map(g => g.field).join(',');
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['analytics-report', startDate, endDate, selectedDkey, activeFilters, selectedGroups, sortConfig, reportOptions],
+    queryKey: ['analytics-report', startDate, endDate, selectedDkey, activeFilters, groupByKey, sortConfig, reportOptions],
     queryFn: () => analyticsApi.getAnalyticsReport(getFullQueryParams()),
     enabled: !!selectedDkey || domains.length === 0,
   });
