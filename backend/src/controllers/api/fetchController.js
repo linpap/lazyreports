@@ -809,6 +809,10 @@ export const getAnalyticsDetail = async (req, res, next) => {
     const needsIpJoin = state || country || ip_org;
     const ipJoin = needsIpJoin ? 'LEFT JOIN lazysauce.ip ip ON v.ip = ip.address' : '';
 
+    // Check if we need device table join for filters
+    const needsDeviceJoin = os || device_type || browser;
+    const deviceJoin = needsDeviceJoin ? 'LEFT JOIN lazysauce.device d ON v.did = d.did' : '';
+
     let sql;
     const params = [];
 
@@ -831,6 +835,7 @@ export const getAnalyticsDetail = async (req, res, next) => {
           v.channel as keyword
         FROM ${tenantDb}.visit v
         ${ipJoin}
+        ${deviceJoin}
         WHERE v.is_bot = 0
       `;
     } else if (type === 'engaged') {
@@ -857,6 +862,7 @@ export const getAnalyticsDetail = async (req, res, next) => {
         FROM ${tenantDb}.action a
         JOIN ${tenantDb}.visit v ON v.pkey = a.pkey
         ${ipJoin}
+        ${deviceJoin}
         WHERE v.is_bot = 0 AND a.action = 2
       `;
     } else if (type === 'sales') {
@@ -881,6 +887,7 @@ export const getAnalyticsDetail = async (req, res, next) => {
         FROM ${tenantDb}.action a
         JOIN ${tenantDb}.visit v ON a.pkey = v.pkey
         ${ipJoin}
+        ${deviceJoin}
         WHERE v.is_bot = 0 AND a.revenue > 0
       `;
     } else {
@@ -924,6 +931,30 @@ export const getAnalyticsDetail = async (req, res, next) => {
     if (ip_org) {
       sql += ' AND ip.org = ?';
       params.push(ip_org);
+    }
+
+    // Device-based filters (require device table join)
+    if (os) {
+      sql += ' AND d.os = ?';
+      params.push(os);
+    }
+
+    if (browser) {
+      sql += ' AND d.browser = ?';
+      params.push(browser);
+    }
+
+    if (device_type) {
+      // device_type is computed: Tablet, Smartphone, Mobile, Desktop
+      if (device_type === 'Tablet') {
+        sql += ' AND d.is_tablet = 1';
+      } else if (device_type === 'Smartphone') {
+        sql += ' AND d.is_smartphone = 1';
+      } else if (device_type === 'Mobile') {
+        sql += ' AND d.is_mobile = 1 AND d.is_tablet = 0 AND d.is_smartphone = 0';
+      } else if (device_type === 'Desktop') {
+        sql += ' AND (d.is_mobile = 0 OR d.is_mobile IS NULL)';
+      }
     }
 
     if (keyword) {
