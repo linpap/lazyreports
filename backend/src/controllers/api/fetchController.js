@@ -683,8 +683,8 @@ export const getAnalyticsReport = async (req, res, next) => {
         // Check if this node has the field value directly
         if (node[field] !== undefined && node[field] !== null && node[field] !== '') {
           allValues[field] = node[field];
-        } else if (idx === 0 && node.label !== undefined && node.label !== null && node.label !== '') {
-          // First field is aliased as 'label'
+        } else if (idx === 0 && !allValues[field] && node.label !== undefined && node.label !== null && node.label !== '') {
+          // First field is aliased as 'label' - only use if not already set by parent
           allValues[field] = node.label;
         }
       });
