@@ -557,8 +557,11 @@ export const getAnalyticsReport = async (req, res, next) => {
     const needsDeviceJoin = groupByFields.some(f => ['device_type', 'os', 'os_version', 'browser', 'browser_version'].includes(f));
     const needsLandingPageJoin = groupByFields.some(f => ['landing_page', 'landing_page_variant'].includes(f));
 
-    // Always join IP table for fraud detection
-    const alwaysNeedsIpJoin = true;
+    // OPTIMIZED: Only join IP table when needed for groupBy, filters, or fraud calculation
+    // Fraud calculation is skipped when IP table is not joined (returns 0)
+    const fraudCalculation = needsIpJoin
+      ? `ROUND(COALESCE(SUM(CASE WHEN ip.is_proxy = 1 OR ip.is_crawler = 1 OR COALESCE(ip.threat_level, 0) > 0 THEN 1 ELSE 0 END) / NULLIF(COUNT(DISTINCT v.pkey), 0) * 100, 0), 2)`
+      : '0';
 
     // Optimized query - use action.action column (action order) to determine engaged
     // If a visitor has an action with action > 1, they have 2+ actions (engaged)
@@ -574,10 +577,10 @@ export const getAnalyticsReport = async (req, res, next) => {
         COALESCE(SUM(a.revenue), 0) as revenue,
         ROUND(COALESCE(SUM(a.revenue) / NULLIF(COUNT(CASE WHEN a.revenue > 0 THEN 1 END), 0), 0), 2) as aov,
         ROUND(COALESCE(SUM(a.revenue) / NULLIF(COUNT(DISTINCT v.pkey), 0), 0), 4) as epc,
-        ROUND(COALESCE(SUM(CASE WHEN ip.is_proxy = 1 OR ip.is_crawler = 1 OR COALESCE(ip.threat_level, 0) > 0 THEN 1 ELSE 0 END) / NULLIF(COUNT(DISTINCT v.pkey), 0) * 100, 0), 2) as fraud
+        ${fraudCalculation} as fraud
       FROM ${tenantDb}.visit v
       LEFT JOIN ${tenantDb}.action a ON v.pkey = a.pkey
-      ${alwaysNeedsIpJoin || needsIpJoin ? 'LEFT JOIN lazysauce.ip ip ON v.ip = ip.address' : ''}
+      ${needsIpJoin ? 'LEFT JOIN lazysauce.ip ip ON v.ip = ip.address' : ''}
       ${needsDeviceJoin ? 'LEFT JOIN lazysauce.device d ON v.did = d.did' : ''}
       ${needsLandingPageJoin ? `LEFT JOIN ${tenantDb}.action landing_action ON v.pkey = landing_action.pkey AND landing_action.action = 1` : ''}
       WHERE 1=1
@@ -586,18 +589,22 @@ export const getAnalyticsReport = async (req, res, next) => {
     const params = [];
 
     // Date filters - use post_date if specified, otherwise date_created
-    // Apply timezone conversion to match user's selected timezone
+    // OPTIMIZED: Convert input dates to UTC instead of using CONVERT_TZ on every row
+    // This allows MySQL to use indexes on the date column
     const dateColumn = shouldUsePostDate ? 'v.post_date' : 'v.date_created';
-    const tzDateColumn = `CONVERT_TZ(${dateColumn}, '+00:00', '${userTimezone}')`;
 
     if (startDate) {
-      sql += ` AND DATE(${tzDateColumn}) >= ?`;
-      params.push(startDate);
+      // Convert user's local start of day to UTC
+      // e.g., 2025-12-22 00:00:00 in Asia/Calcutta -> 2025-12-21 18:30:00 UTC
+      sql += ` AND ${dateColumn} >= CONVERT_TZ(?, '${userTimezone}', '+00:00')`;
+      params.push(`${startDate} 00:00:00`);
     }
 
     if (endDate) {
-      sql += ` AND DATE(${tzDateColumn}) <= ?`;
-      params.push(endDate);
+      // Convert user's local end of day to UTC
+      // e.g., 2025-12-22 23:59:59 in Asia/Calcutta -> 2025-12-22 18:29:59 UTC
+      sql += ` AND ${dateColumn} < CONVERT_TZ(?, '${userTimezone}', '+00:00')`;
+      params.push(`${endDate} 23:59:59.999999`);
     }
 
     // Build filter conditions
@@ -894,16 +901,15 @@ export const getAnalyticsDetail = async (req, res, next) => {
       return res.json({ success: true, data: [] });
     }
 
-    // Date filters with timezone conversion
-    const tzDateColumn = `CONVERT_TZ(v.date_created, '+00:00', '${userTimezone}')`;
+    // Date filters - OPTIMIZED: Convert input dates to UTC instead of CONVERT_TZ on every row
     if (startDate) {
-      sql += ` AND DATE(${tzDateColumn}) >= ?`;
-      params.push(startDate);
+      sql += ` AND v.date_created >= CONVERT_TZ(?, '${userTimezone}', '+00:00')`;
+      params.push(`${startDate} 00:00:00`);
     }
 
     if (endDate) {
-      sql += ` AND DATE(${tzDateColumn}) <= ?`;
-      params.push(endDate);
+      sql += ` AND v.date_created < CONVERT_TZ(?, '${userTimezone}', '+00:00')`;
+      params.push(`${endDate} 23:59:59.999999`);
     }
 
     // Additional filters
