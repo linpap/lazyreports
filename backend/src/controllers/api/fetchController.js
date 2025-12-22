@@ -820,6 +820,26 @@ export const getAnalyticsDetail = async (req, res, next) => {
     const needsDeviceJoin = os || device_type || browser;
     const deviceJoin = needsDeviceJoin ? 'LEFT JOIN lazysauce.device d ON v.did = d.did' : '';
 
+    // OPTIMIZED: Parse landing_page_variant filter early to use JOIN instead of EXISTS
+    const filterValue = landing_page_variant || label;
+    let landingPageJoin = '';
+    let landingPageWhere = '';
+    const landingPageParams = [];
+
+    if (filterValue) {
+      const match = filterValue.match(/^(.+?)\s*-\s*Variant:\s*(.+)$/);
+      if (match) {
+        const [, pageName, variantName] = match;
+        landingPageJoin = `JOIN ${tenantDb}.action landing ON landing.pkey = v.pkey AND landing.action = 1`;
+        landingPageWhere = ' AND landing.name = ? AND landing.variant = ?';
+        landingPageParams.push(pageName.trim(), variantName.trim());
+      } else {
+        landingPageJoin = `JOIN ${tenantDb}.action landing ON landing.pkey = v.pkey AND landing.action = 1`;
+        landingPageWhere = ' AND landing.name = ?';
+        landingPageParams.push(filterValue);
+      }
+    }
+
     let sql;
     const params = [];
 
@@ -841,10 +861,12 @@ export const getAnalyticsDetail = async (req, res, next) => {
           v.subchannel,
           v.channel as keyword
         FROM ${tenantDb}.visit v
+        ${landingPageJoin}
         ${ipJoin}
         ${deviceJoin}
-        WHERE v.is_bot = 0
+        WHERE v.is_bot = 0 ${landingPageWhere}
       `;
+      params.push(...landingPageParams);
     } else if (type === 'engaged') {
       // Highly optimized: Query action table directly for visitors with action > 1
       // This avoids scanning the entire visit table
@@ -868,10 +890,12 @@ export const getAnalyticsDetail = async (req, res, next) => {
           v.channel as keyword
         FROM ${tenantDb}.action a
         JOIN ${tenantDb}.visit v ON v.pkey = a.pkey
+        ${landingPageJoin}
         ${ipJoin}
         ${deviceJoin}
-        WHERE v.is_bot = 0 AND a.action = 2
+        WHERE v.is_bot = 0 AND a.action = 2 ${landingPageWhere}
       `;
+      params.push(...landingPageParams);
     } else if (type === 'sales') {
       sql = `
         SELECT
@@ -893,10 +917,12 @@ export const getAnalyticsDetail = async (req, res, next) => {
           v.channel as keyword
         FROM ${tenantDb}.action a
         JOIN ${tenantDb}.visit v ON a.pkey = v.pkey
+        ${landingPageJoin}
         ${ipJoin}
         ${deviceJoin}
-        WHERE v.is_bot = 0 AND a.revenue > 0
+        WHERE v.is_bot = 0 AND a.revenue > 0 ${landingPageWhere}
       `;
+      params.push(...landingPageParams);
     } else {
       return res.json({ success: true, data: [] });
     }
@@ -985,33 +1011,8 @@ export const getAnalyticsDetail = async (req, res, next) => {
       params.push(page);
     }
 
-    // Landing page variant filter (format: "PageName - Variant: VariantName")
-    if (landing_page_variant || label) {
-      const filterValue = landing_page_variant || label;
-      // Parse the combined format
-      const match = filterValue.match(/^(.+?)\s*-\s*Variant:\s*(.+)$/);
-      if (match) {
-        const [, pageName, variantName] = match;
-        // Need to join with landing action (action=1) to filter
-        sql += ` AND EXISTS (
-          SELECT 1 FROM ${tenantDb}.action landing
-          WHERE landing.pkey = v.pkey
-          AND landing.action = 1
-          AND landing.name = ?
-          AND landing.variant = ?
-        )`;
-        params.push(pageName.trim(), variantName.trim());
-      } else {
-        // Just filter by the label as page name
-        sql += ` AND EXISTS (
-          SELECT 1 FROM ${tenantDb}.action landing
-          WHERE landing.pkey = v.pkey
-          AND landing.action = 1
-          AND landing.name = ?
-        )`;
-        params.push(filterValue);
-      }
-    }
+    // Landing page variant filter is now handled via JOIN at query construction time
+    // (see landingPageJoin and landingPageWhere variables above)
 
     // Search filter - search across multiple fields
     if (search && search.trim()) {
