@@ -1,5 +1,41 @@
 import pool, { analyticsPool, getTenantConnection } from '../../config/database.js';
 import { ApiError } from '../../middleware/errorHandler.js';
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc.js';
+import timezone from 'dayjs/plugin/timezone.js';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+/**
+ * Simple in-memory cache for analytics queries with TTL
+ * Significantly reduces load time for repeated queries
+ */
+const queryCache = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+const getCacheKey = (params) => JSON.stringify(params);
+
+const getCachedResult = (key) => {
+  const cached = queryCache.get(key);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data;
+  }
+  if (cached) {
+    queryCache.delete(key); // Expired
+  }
+  return null;
+};
+
+const setCachedResult = (key, data) => {
+  // Limit cache size to prevent memory issues
+  if (queryCache.size > 100) {
+    // Remove oldest entries
+    const oldestKey = queryCache.keys().next().value;
+    queryCache.delete(oldestKey);
+  }
+  queryCache.set(key, { data, timestamp: Date.now() });
+};
 
 /**
  * Build hierarchical data structure from flat grouped rows
@@ -494,6 +530,17 @@ export const getAnalyticsReport = async (req, res, next) => {
     // Get timezone from query param or user profile
     const userTimezone = timezone || req.user?.timezone || '+00:00';
 
+    // Check cache first for faster response
+    const cacheKey = getCacheKey({
+      type: 'report',
+      startDate, endDate, channel, subchannel, country, keyword, iporg,
+      page_action, matchType, groupBy, dkey, includeBots, usePostDate, timezone
+    });
+    const cachedResult = getCachedResult(cacheKey);
+    if (cachedResult) {
+      return res.json(cachedResult);
+    }
+
     const userId = req.user?.id;
     let tenantDkey = dkey;
 
@@ -589,22 +636,23 @@ export const getAnalyticsReport = async (req, res, next) => {
     const params = [];
 
     // Date filters - use post_date if specified, otherwise date_created
-    // OPTIMIZED: Convert input dates to UTC instead of using CONVERT_TZ on every row
-    // This allows MySQL to use indexes on the date column
+    // OPTIMIZED: Convert dates to UTC in JavaScript to guarantee MySQL index usage
     const dateColumn = shouldUsePostDate ? 'v.post_date' : 'v.date_created';
 
     if (startDate) {
-      // Convert user's local start of day to UTC
+      // Convert user's local start of day to UTC using dayjs
       // e.g., 2025-12-22 00:00:00 in Asia/Calcutta -> 2025-12-21 18:30:00 UTC
-      sql += ` AND ${dateColumn} >= CONVERT_TZ(?, '${userTimezone}', '+00:00')`;
-      params.push(`${startDate} 00:00:00`);
+      const startUtc = dayjs.tz(`${startDate} 00:00:00`, userTimezone).utc().format('YYYY-MM-DD HH:mm:ss');
+      sql += ` AND ${dateColumn} >= ?`;
+      params.push(startUtc);
     }
 
     if (endDate) {
-      // Convert user's local end of day to UTC
+      // Convert user's local end of day to UTC using dayjs
       // e.g., 2025-12-22 23:59:59 in Asia/Calcutta -> 2025-12-22 18:29:59 UTC
-      sql += ` AND ${dateColumn} < CONVERT_TZ(?, '${userTimezone}', '+00:00')`;
-      params.push(`${endDate} 23:59:59.999999`);
+      const endUtc = dayjs.tz(`${endDate} 23:59:59`, userTimezone).utc().format('YYYY-MM-DD HH:mm:ss');
+      sql += ` AND ${dateColumn} <= ?`;
+      params.push(endUtc);
     }
 
     // Build filter conditions
@@ -744,12 +792,17 @@ export const getAnalyticsReport = async (req, res, next) => {
     // Add links to all nodes
     responseData.forEach(node => addLinksToNode(node, {}));
 
-    res.json({
+    const response = {
       success: true,
       data: responseData,
       groupByFields: groupByFields,
       isHierarchical: groupByFields.length > 1
-    });
+    };
+
+    // Cache the result for faster subsequent requests
+    setCachedResult(cacheKey, response);
+
+    res.json(response);
   } catch (error) {
     next(error);
   }
@@ -927,15 +980,17 @@ export const getAnalyticsDetail = async (req, res, next) => {
       return res.json({ success: true, data: [] });
     }
 
-    // Date filters - OPTIMIZED: Convert input dates to UTC instead of CONVERT_TZ on every row
+    // Date filters - OPTIMIZED: Convert dates to UTC in JavaScript for index usage
     if (startDate) {
-      sql += ` AND v.date_created >= CONVERT_TZ(?, '${userTimezone}', '+00:00')`;
-      params.push(`${startDate} 00:00:00`);
+      const startUtc = dayjs.tz(`${startDate} 00:00:00`, userTimezone).utc().format('YYYY-MM-DD HH:mm:ss');
+      sql += ` AND v.date_created >= ?`;
+      params.push(startUtc);
     }
 
     if (endDate) {
-      sql += ` AND v.date_created < CONVERT_TZ(?, '${userTimezone}', '+00:00')`;
-      params.push(`${endDate} 23:59:59.999999`);
+      const endUtc = dayjs.tz(`${endDate} 23:59:59`, userTimezone).utc().format('YYYY-MM-DD HH:mm:ss');
+      sql += ` AND v.date_created <= ?`;
+      params.push(endUtc);
     }
 
     // Additional filters
