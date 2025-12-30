@@ -46,8 +46,9 @@ router.get('/ip-actions', fetchController.getIPActions);
 // Channels
 router.get('/channels', fetchController.getChannels);
 
-// Clients
+// Clients/Advertisers
 router.get('/clients', fetchController.getClients);
+router.get('/clients/:id/report', fetchController.getClientReport);
 
 // Conversions
 router.get('/conversions', fetchController.getConversions);

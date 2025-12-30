@@ -1659,31 +1659,40 @@ export const getChannels = async (req, res, next) => {
 };
 
 /**
- * Fetch clients
+ * Fetch clients/advertisers
  * GET /api/clients
  *
- * Note: This endpoint queries the clients table which may not exist in all installations.
- * Returns empty array if table doesn't exist.
+ * Returns list of advertisers from lazysauce_analytics.advertiser table
+ * This matches the PHP client-management functionality
  */
 export const getClients = async (req, res, next) => {
   try {
-    const { active, search, limit = 100, offset = 0 } = req.query;
+    const { search } = req.query;
+    const userId = req.user?.id;
 
-    let sql = 'SELECT * FROM lazysauce.clients WHERE 1=1';
+    // First check if user has access (admin or has advertiser associations)
+    let sql = `
+      SELECT DISTINCT a.aid as id, a.name, a.contact_name, a.email, a.date_created
+      FROM lazysauce_analytics.advertiser a
+    `;
     const params = [];
 
-    if (active !== undefined) {
-      sql += ' AND active = ?';
-      params.push(active === 'true' ? 1 : 0);
+    // If not admin, filter by user's advertiser associations
+    if (req.user?.role !== 'admin') {
+      sql += ` JOIN lazysauce_analytics.user_advertiser ua ON a.aid = ua.advertiser_id
+               WHERE ua.user_id = ?`;
+      params.push(userId);
+
+      if (search) {
+        sql += ' AND a.name LIKE ?';
+        params.push(`%${search}%`);
+      }
+    } else if (search) {
+      sql += ' WHERE a.name LIKE ?';
+      params.push(`%${search}%`);
     }
 
-    if (search) {
-      sql += ' AND (name LIKE ? OR company LIKE ?)';
-      params.push(`%${search}%`, `%${search}%`);
-    }
-
-    sql += ' ORDER BY name LIMIT ? OFFSET ?';
-    params.push(parseInt(limit), parseInt(offset));
+    sql += ' ORDER BY a.name';
 
     const [rows] = await pool.execute(sql, params);
 
@@ -1692,14 +1701,126 @@ export const getClients = async (req, res, next) => {
       data: rows
     });
   } catch (error) {
-    // If table doesn't exist, return empty array instead of error
     if (error.code === 'ER_NO_SUCH_TABLE') {
       return res.json({
         success: true,
         data: [],
-        message: 'Clients table not configured'
+        message: 'Advertiser table not configured'
       });
     }
+    next(error);
+  }
+};
+
+/**
+ * Get client/advertiser report - visitor counts for all offers of an advertiser
+ * GET /api/clients/:id/report
+ */
+export const getClientReport = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { startDate, endDate } = req.query;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Client ID is required'
+      });
+    }
+
+    // Get all domains/offers for this advertiser
+    const [domains] = await pool.execute(`
+      SELECT dkey, name FROM lazysauce.domain WHERE aid = ?
+    `, [id]);
+
+    if (domains.length === 0) {
+      return res.json({
+        success: true,
+        data: {
+          client: { id },
+          offers: [],
+          totals: { visitors: 0, engaged: 0, sales: 0, revenue: 0 }
+        }
+      });
+    }
+
+    // Calculate date range
+    const end = endDate ? dayjs(endDate) : dayjs();
+    const start = startDate ? dayjs(startDate) : end.subtract(7, 'day');
+    const startStr = start.startOf('day').format('YYYY-MM-DD HH:mm:ss');
+    const endStr = end.endOf('day').format('YYYY-MM-DD HH:mm:ss');
+
+    // Get visitor counts for each domain
+    const results = [];
+    let totalVisitors = 0;
+    let totalEngaged = 0;
+    let totalSales = 0;
+    let totalRevenue = 0;
+
+    for (const domain of domains) {
+      const tenantDb = `lazysauce_${domain.dkey}`;
+
+      try {
+        const [stats] = await pool.execute(`
+          SELECT
+            COUNT(DISTINCT v.pkey) as visitors,
+            COUNT(DISTINCT CASE WHEN a.pkey IS NOT NULL AND a.action != 'landing' THEN v.pkey END) as engaged,
+            COUNT(DISTINCT CASE WHEN a.action = 'conversion' OR a.revenue > 0 THEN v.pkey END) as sales,
+            COALESCE(SUM(a.revenue), 0) as revenue
+          FROM ${tenantDb}.visit v
+          LEFT JOIN ${tenantDb}.action a ON v.pkey = a.pkey
+          WHERE v.is_bot = 0
+            AND v.date_created >= ?
+            AND v.date_created <= ?
+        `, [startStr, endStr]);
+
+        const stat = stats[0] || { visitors: 0, engaged: 0, sales: 0, revenue: 0 };
+
+        results.push({
+          dkey: domain.dkey,
+          name: domain.name,
+          visitors: Number(stat.visitors) || 0,
+          engaged: Number(stat.engaged) || 0,
+          sales: Number(stat.sales) || 0,
+          revenue: Number(stat.revenue) || 0
+        });
+
+        totalVisitors += Number(stat.visitors) || 0;
+        totalEngaged += Number(stat.engaged) || 0;
+        totalSales += Number(stat.sales) || 0;
+        totalRevenue += Number(stat.revenue) || 0;
+      } catch (err) {
+        // If tenant DB doesn't exist, skip it
+        if (err.code !== 'ER_NO_SUCH_TABLE' && !err.message.includes('Unknown database')) {
+          console.error(`Error querying ${tenantDb}:`, err.message);
+        }
+        results.push({
+          dkey: domain.dkey,
+          name: domain.name,
+          visitors: 0,
+          engaged: 0,
+          sales: 0,
+          revenue: 0,
+          error: 'No data available'
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      data: {
+        client: { id },
+        dateRange: { start: startStr, end: endStr },
+        offers: results,
+        totals: {
+          visitors: totalVisitors,
+          engaged: totalEngaged,
+          sales: totalSales,
+          revenue: totalRevenue
+        }
+      }
+    });
+  } catch (error) {
     next(error);
   }
 };
@@ -2257,6 +2378,7 @@ export default {
   getIPActions,
   getChannels,
   getClients,
+  getClientReport,
   getConversions,
   getOffers,
   getRawwords,
