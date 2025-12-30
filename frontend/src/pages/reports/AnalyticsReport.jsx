@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { Filter, Settings, Download, RefreshCw, Search, Columns, FileDown } from 'lucide-react';
 import { analyticsApi, domainsApi } from '../../services/api';
 import { useFilterStore } from '../../store/filterStore';
@@ -13,16 +14,30 @@ import DetailModal from '../../components/reports/DetailModal';
 import WorldMap from '../../components/reports/WorldMap';
 import { REPORT_COLUMNS, GROUP_BY_OPTIONS } from '../../constants/reportOptions';
 
+// Helper to get initial groupBy from URL params
+const getInitialGroupBy = (searchParams) => {
+  const groupByParam = searchParams.get('groupBy');
+  if (groupByParam) {
+    const fields = groupByParam.split(',');
+    const groups = fields
+      .map(field => GROUP_BY_OPTIONS.find(opt => opt.field === field))
+      .filter(Boolean);
+    if (groups.length > 0) return groups;
+  }
+  // Default to Landing Page + Variant
+  return [GROUP_BY_OPTIONS.find(opt => opt.field === 'landing_page_variant') || GROUP_BY_OPTIONS[0]];
+};
+
 export default function AnalyticsReport() {
+  const [searchParams] = useSearchParams();
   const { startDate, endDate, selectedDkey, setSelectedDomain, getQueryParams } = useFilterStore();
 
   // UI State
   const [showFilters, setShowFilters] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [activeFilters, setActiveFilters] = useState({ filters: {}, matchType: 'any' });
-  // Default to Landing Page + Variant (index 14, id: 15)
-  const landingPageVariantOption = GROUP_BY_OPTIONS.find(opt => opt.field === 'landing_page_variant') || GROUP_BY_OPTIONS[0];
-  const [selectedGroups, setSelectedGroups] = useState([landingPageVariantOption]);
+  // Initialize from URL params or default to Landing Page + Variant
+  const [selectedGroups, setSelectedGroups] = useState(() => getInitialGroupBy(searchParams));
   const [sortConfig, setSortConfig] = useState({ key: 'visitors', direction: 'desc' });
 
   // Report Options
@@ -65,6 +80,15 @@ export default function AnalyticsReport() {
       }
     }
   }, [domains, defaultOffer, selectedDkey, setSelectedDomain]);
+
+  // Update selectedGroups when URL params change (e.g., from Custom Reports page)
+  useEffect(() => {
+    const groupByParam = searchParams.get('groupBy');
+    if (groupByParam) {
+      const newGroups = getInitialGroupBy(searchParams);
+      setSelectedGroups(newGroups);
+    }
+  }, [searchParams]);
 
   // Build query params including filters and grouping
   const getFullQueryParams = useCallback(() => {
