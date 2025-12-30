@@ -1702,7 +1702,7 @@ export const getClients = async (req, res, next) => {
 /**
  * Get client/advertiser report - visitor counts for all offers of an advertiser
  * GET /api/clients/:id/report
- * OPTIMIZED: Runs queries in parallel with timeout
+ * OPTIMIZED: Single UNION ALL query for all domains
  */
 export const getClientReport = async (req, res, next) => {
   try {
@@ -1727,7 +1727,7 @@ export const getClientReport = async (req, res, next) => {
         data: {
           client: { id },
           offers: [],
-          totals: { visitors: 0, engaged: 0, sales: 0, revenue: 0 }
+          totals: { visitors: 0 }
         }
       });
     }
@@ -1738,43 +1738,52 @@ export const getClientReport = async (req, res, next) => {
     const startStr = start.startOf('day').format('YYYY-MM-DD HH:mm:ss');
     const endStr = end.endOf('day').format('YYYY-MM-DD HH:mm:ss');
 
-    // Helper function to query a single domain with timeout
-    const queryDomain = async (domain) => {
-      const tenantDb = `lazysauce_${domain.dkey}`;
-      try {
-        // Simple visitor count query (faster than complex joins)
-        const [stats] = await pool.execute(`
-          SELECT COUNT(*) as visitors
-          FROM ${tenantDb}.visit v
-          WHERE v.is_bot = 0
-            AND v.date_created >= ?
-            AND v.date_created <= ?
-        `, [startStr, endStr]);
+    // Build a single UNION ALL query for all domains
+    const unionParts = [];
+    const domainMap = {};
 
-        return {
-          dkey: domain.dkey,
-          name: domain.name,
-          visitors: Number(stats[0]?.visitors) || 0
-        };
-      } catch (err) {
-        // Database doesn't exist or other error
-        return {
-          dkey: domain.dkey,
-          name: domain.name,
-          visitors: 0,
-          error: 'No data'
-        };
+    for (const domain of domains) {
+      domainMap[domain.dkey] = domain.name;
+      unionParts.push(`
+        SELECT '${domain.dkey}' as dkey, COUNT(*) as visitors
+        FROM lazysauce_${domain.dkey}.visit
+        WHERE is_bot = 0 AND date_created >= '${startStr}' AND date_created <= '${endStr}'
+      `);
+    }
+
+    // Execute single combined query (faster than multiple queries)
+    let results = [];
+    try {
+      const combinedSql = unionParts.join(' UNION ALL ');
+      const [rows] = await pool.query(combinedSql);
+      results = rows.map(row => ({
+        dkey: row.dkey,
+        name: domainMap[row.dkey],
+        visitors: Number(row.visitors) || 0
+      }));
+    } catch (err) {
+      // If UNION fails (some DBs don't exist), fall back to individual queries
+      console.log('UNION query failed, falling back to individual queries');
+      for (const domain of domains) {
+        try {
+          const [rows] = await pool.execute(`
+            SELECT COUNT(*) as visitors FROM lazysauce_${domain.dkey}.visit
+            WHERE is_bot = 0 AND date_created >= ? AND date_created <= ?
+          `, [startStr, endStr]);
+          results.push({
+            dkey: domain.dkey,
+            name: domain.name,
+            visitors: Number(rows[0]?.visitors) || 0
+          });
+        } catch (e) {
+          results.push({
+            dkey: domain.dkey,
+            name: domain.name,
+            visitors: 0,
+            error: 'No data'
+          });
+        }
       }
-    };
-
-    // Run all queries in parallel (max 10 concurrent)
-    const batchSize = 10;
-    const results = [];
-
-    for (let i = 0; i < domains.length; i += batchSize) {
-      const batch = domains.slice(i, i + batchSize);
-      const batchResults = await Promise.all(batch.map(queryDomain));
-      results.push(...batchResults);
     }
 
     // Calculate totals
