@@ -8,6 +8,21 @@ import { advertisersApi } from '../../services/api';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import dayjs from 'dayjs';
 
+// SCB (Subscription Type) options matching PHP system
+const SCB_OPTIONS = [
+  { value: 0, label: 'Unlicensed/Trial', color: 'bg-gray-100 text-gray-700' },
+  { value: 1, label: 'Dejavu Only', color: 'bg-purple-100 text-purple-700' },
+  { value: 2, label: 'Licensed', color: 'bg-green-100 text-green-700' },
+  { value: 3, label: 'Agency', color: 'bg-blue-100 text-blue-700' },
+  { value: 4, label: 'Enterprise', color: 'bg-indigo-100 text-indigo-700' },
+  { value: 5, label: 'Owner', color: 'bg-yellow-100 text-yellow-700' },
+];
+
+const getScbLabel = (value) => {
+  const option = SCB_OPTIONS.find(o => o.value === Number(value));
+  return option || SCB_OPTIONS[0];
+};
+
 export default function AdvertiserReport() {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
@@ -24,7 +39,7 @@ export default function AdvertiserReport() {
     db_host: '',
     billing_email: '',
     amount: 0,
-    subscription_type: 'monthly',
+    subscription_type: 0,
   });
   const [deleteConfirm, setDeleteConfirm] = useState(null);
 
@@ -48,7 +63,7 @@ export default function AdvertiserReport() {
         db_host: '',
         billing_email: '',
         amount: 0,
-        subscription_type: 'monthly',
+        subscription_type: 0,
       });
     },
   });
@@ -307,13 +322,13 @@ export default function AdvertiserReport() {
                         </td>
                         <td className="px-3 py-2">
                           <select
-                            value={editForm.subscription_type || 'monthly'}
-                            onChange={(e) => setEditForm({ ...editForm, subscription_type: e.target.value })}
-                            className="input input-sm w-24"
+                            value={editForm.subscription_type ?? 0}
+                            onChange={(e) => setEditForm({ ...editForm, subscription_type: parseInt(e.target.value) })}
+                            className="input input-sm w-32"
                           >
-                            <option value="monthly">Monthly</option>
-                            <option value="yearly">Yearly</option>
-                            <option value="trial">Trial</option>
+                            {SCB_OPTIONS.map((opt) => (
+                              <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
                           </select>
                         </td>
                         <td className="px-3 py-2 text-right">
@@ -371,15 +386,14 @@ export default function AdvertiserReport() {
                           ${Number(advertiser.amount || 0).toFixed(2)}
                         </td>
                         <td className="px-3 py-2">
-                          <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${
-                            advertiser.subscription_type === 'yearly'
-                              ? 'bg-green-100 text-green-700'
-                              : advertiser.subscription_type === 'trial'
-                              ? 'bg-yellow-100 text-yellow-700'
-                              : 'bg-blue-100 text-blue-700'
-                          }`}>
-                            {advertiser.subscription_type || 'monthly'}
-                          </span>
+                          {(() => {
+                            const scb = getScbLabel(advertiser.subscription_type);
+                            return (
+                              <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${scb.color}`}>
+                                {scb.label}
+                              </span>
+                            );
+                          })()}
                         </td>
                         <td className="px-3 py-2 text-right">
                           <div className="flex items-center justify-end gap-1">
@@ -512,16 +526,16 @@ export default function AdvertiserReport() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-secondary-700 mb-1">
-                    Subscription Type
+                    Subscription Type (SCB)
                   </label>
                   <select
                     value={newAdvertiser.subscription_type}
-                    onChange={(e) => setNewAdvertiser({ ...newAdvertiser, subscription_type: e.target.value })}
+                    onChange={(e) => setNewAdvertiser({ ...newAdvertiser, subscription_type: parseInt(e.target.value) })}
                     className="input"
                   >
-                    <option value="monthly">Monthly</option>
-                    <option value="yearly">Yearly</option>
-                    <option value="trial">Trial</option>
+                    {SCB_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
                   </select>
                 </div>
               </div>
