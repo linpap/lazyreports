@@ -50,11 +50,11 @@ router.get('/channels', fetchController.getChannels);
 router.get('/clients', fetchController.getClients);
 router.get('/clients/:id/report', fetchController.getClientReport);
 
-// Advertisers (admin management)
+// Advertisers (owner management - matches PHP isOwner check)
 router.get('/advertisers', fetchController.getAdvertisers);
-router.post('/advertisers', requireAdmin, fetchController.createAdvertiser);
-router.put('/advertisers/:id', requireAdmin, fetchController.updateAdvertiser);
-router.delete('/advertisers/:id', requireAdmin, fetchController.deleteAdvertiser);
+router.post('/advertisers', fetchController.createAdvertiser);
+router.put('/advertisers/:id', fetchController.updateAdvertiser);
+router.delete('/advertisers/:id', fetchController.deleteAdvertiser);
 
 // Conversions
 router.get('/conversions', fetchController.getConversions);
