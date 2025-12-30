@@ -1707,10 +1707,10 @@ export const getClients = async (req, res, next) => {
  */
 export const getAdvertisers = async (req, res, next) => {
   try {
-    // Query from lazysauce.advertiser (main database)
-    const [rows] = await pool.execute(`
+    // Query from advertiser table (same as getClients, uses analyticsPool)
+    const [rows] = await analyticsPool.execute(`
       SELECT
-        aid as id,
+        advertiser_id as id,
         subscription_type,
         name,
         license,
@@ -1722,8 +1722,8 @@ export const getAdvertisers = async (req, res, next) => {
         db_host,
         billing_email,
         amount
-      FROM lazysauce.advertiser
-      ORDER BY aid DESC
+      FROM advertiser
+      ORDER BY advertiser_id DESC
     `);
 
     res.json({
@@ -1785,8 +1785,8 @@ export const updateAdvertiser = async (req, res, next) => {
     setClauses.push('date_updated = NOW()');
     values.push(id);
 
-    await pool.execute(
-      `UPDATE lazysauce.advertiser SET ${setClauses.join(', ')} WHERE aid = ?`,
+    await analyticsPool.execute(
+      `UPDATE advertiser SET ${setClauses.join(', ')} WHERE advertiser_id = ?`,
       values
     );
 
@@ -1814,8 +1814,8 @@ export const createAdvertiser = async (req, res, next) => {
       });
     }
 
-    const [result] = await pool.execute(`
-      INSERT INTO lazysauce.advertiser
+    const [result] = await analyticsPool.execute(`
+      INSERT INTO advertiser
         (name, license, email, contact_name, db_host, billing_email, amount, subscription_type, date_created, date_updated)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
     `, [name, license || '', email || '', contact_name || '', db_host || '', billing_email || '', amount || 0, subscription_type || 0]);
@@ -1845,7 +1845,7 @@ export const deleteAdvertiser = async (req, res, next) => {
       });
     }
 
-    await pool.execute('DELETE FROM lazysauce.advertiser WHERE aid = ?', [id]);
+    await analyticsPool.execute('DELETE FROM advertiser WHERE advertiser_id = ?', [id]);
 
     res.json({
       success: true,
