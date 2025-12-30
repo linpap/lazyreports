@@ -1662,7 +1662,7 @@ export const getChannels = async (req, res, next) => {
  * Fetch clients/advertisers
  * GET /api/clients
  *
- * Returns list of advertisers from lazysauce_analytics.advertiser table
+ * Returns list of advertisers from lazysauce.advertiser table
  * This matches the PHP client-management functionality
  */
 export const getClients = async (req, res, next) => {
@@ -1670,10 +1670,11 @@ export const getClients = async (req, res, next) => {
     const { search } = req.query;
     const userId = req.user?.id;
 
-    // First check if user has access (admin or has advertiser associations)
+    // Query advertisers - try lazysauce.advertiser first (main table)
+    // Join with user_advertiser in analytics DB to filter by user access
     let sql = `
       SELECT DISTINCT a.aid as id, a.name, a.contact_name, a.email, a.date_created
-      FROM lazysauce_analytics.advertiser a
+      FROM lazysauce.advertiser a
     `;
     const params = [];
 
@@ -1701,12 +1702,25 @@ export const getClients = async (req, res, next) => {
       data: rows
     });
   } catch (error) {
-    if (error.code === 'ER_NO_SUCH_TABLE') {
-      return res.json({
-        success: true,
-        data: [],
-        message: 'Advertiser table not configured'
-      });
+    // Try fallback to analytics DB advertiser table
+    if (error.code === 'ER_NO_SUCH_TABLE' || error.message?.includes('doesn\'t exist')) {
+      try {
+        const [rows] = await analyticsPool.execute(`
+          SELECT advertiser_id as id, name
+          FROM advertiser
+          ORDER BY name
+        `);
+        return res.json({
+          success: true,
+          data: rows
+        });
+      } catch (fallbackError) {
+        return res.json({
+          success: true,
+          data: [],
+          message: 'Advertiser table not configured'
+        });
+      }
     }
     next(error);
   }
