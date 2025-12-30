@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Building2, Play, Users, DollarSign, MousePointer, ShoppingCart } from 'lucide-react';
+import { Building2, Play, Users } from 'lucide-react';
 import { dataApi } from '../services/api';
 import DateRangePicker from '../components/common/DateRangePicker';
 import LoadingSpinner from '../components/common/LoadingSpinner';
@@ -41,14 +41,7 @@ export default function ClientManagement() {
 
   const handleClientChange = (e) => {
     setSelectedClient(e.target.value);
-    setRunReport(false); // Reset report when client changes
-  };
-
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(value || 0);
+    setRunReport(false);
   };
 
   const formatNumber = (value) => {
@@ -135,58 +128,17 @@ export default function ClientManagement() {
 
       {report && !reportLoading && !isFetching && (
         <div className="space-y-4">
-          {/* Summary Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="card p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <Users className="w-5 h-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-secondary-500">Total Visitors</p>
-                  <p className="text-xl font-bold text-secondary-900">
-                    {formatNumber(report.totals?.visitors)}
-                  </p>
-                </div>
+          {/* Summary Card */}
+          <div className="card p-4 max-w-xs">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                <Users className="w-5 h-5 text-blue-600" />
               </div>
-            </div>
-            <div className="card p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                  <MousePointer className="w-5 h-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-secondary-500">Total Engaged</p>
-                  <p className="text-xl font-bold text-secondary-900">
-                    {formatNumber(report.totals?.engaged)}
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="card p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                  <ShoppingCart className="w-5 h-5 text-purple-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-secondary-500">Total Sales</p>
-                  <p className="text-xl font-bold text-secondary-900">
-                    {formatNumber(report.totals?.sales)}
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="card p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
-                  <DollarSign className="w-5 h-5 text-amber-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-secondary-500">Total Revenue</p>
-                  <p className="text-xl font-bold text-secondary-900">
-                    {formatCurrency(report.totals?.revenue)}
-                  </p>
-                </div>
+              <div>
+                <p className="text-sm text-secondary-500">Total Visitors</p>
+                <p className="text-xl font-bold text-secondary-900">
+                  {formatNumber(report.totals?.visitors)}
+                </p>
               </div>
             </div>
           </div>
@@ -213,15 +165,6 @@ export default function ClientManagement() {
                       <th className="px-4 py-3 text-right text-xs font-semibold text-secondary-600 uppercase tracking-wider">
                         Visitors
                       </th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold text-secondary-600 uppercase tracking-wider">
-                        Engaged
-                      </th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold text-secondary-600 uppercase tracking-wider">
-                        Sales
-                      </th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold text-secondary-600 uppercase tracking-wider">
-                        Revenue
-                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-secondary-100">
@@ -238,15 +181,6 @@ export default function ClientManagement() {
                         <td className="px-4 py-3 text-sm text-secondary-700 text-right">
                           {formatNumber(offer.visitors)}
                         </td>
-                        <td className="px-4 py-3 text-sm text-secondary-700 text-right">
-                          {formatNumber(offer.engaged)}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-secondary-700 text-right">
-                          {formatNumber(offer.sales)}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-secondary-700 text-right">
-                          {formatCurrency(offer.revenue)}
-                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -257,15 +191,6 @@ export default function ClientManagement() {
                       </td>
                       <td className="px-4 py-3 text-sm text-secondary-900 text-right">
                         {formatNumber(report.totals?.visitors)}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-secondary-900 text-right">
-                        {formatNumber(report.totals?.engaged)}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-secondary-900 text-right">
-                        {formatNumber(report.totals?.sales)}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-secondary-900 text-right">
-                        {formatCurrency(report.totals?.revenue)}
                       </td>
                     </tr>
                   </tfoot>

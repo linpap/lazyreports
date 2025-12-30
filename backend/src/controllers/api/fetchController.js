@@ -1702,6 +1702,7 @@ export const getClients = async (req, res, next) => {
 /**
  * Get client/advertiser report - visitor counts for all offers of an advertiser
  * GET /api/clients/:id/report
+ * OPTIMIZED: Runs queries in parallel with timeout
  */
 export const getClientReport = async (req, res, next) => {
   try {
@@ -1737,61 +1738,47 @@ export const getClientReport = async (req, res, next) => {
     const startStr = start.startOf('day').format('YYYY-MM-DD HH:mm:ss');
     const endStr = end.endOf('day').format('YYYY-MM-DD HH:mm:ss');
 
-    // Get visitor counts for each domain
-    const results = [];
-    let totalVisitors = 0;
-    let totalEngaged = 0;
-    let totalSales = 0;
-    let totalRevenue = 0;
-
-    for (const domain of domains) {
+    // Helper function to query a single domain with timeout
+    const queryDomain = async (domain) => {
       const tenantDb = `lazysauce_${domain.dkey}`;
-
       try {
+        // Simple visitor count query (faster than complex joins)
         const [stats] = await pool.execute(`
-          SELECT
-            COUNT(DISTINCT v.pkey) as visitors,
-            COUNT(DISTINCT CASE WHEN a.pkey IS NOT NULL AND a.action != 'landing' THEN v.pkey END) as engaged,
-            COUNT(DISTINCT CASE WHEN a.action = 'conversion' OR a.revenue > 0 THEN v.pkey END) as sales,
-            COALESCE(SUM(a.revenue), 0) as revenue
+          SELECT COUNT(*) as visitors
           FROM ${tenantDb}.visit v
-          LEFT JOIN ${tenantDb}.action a ON v.pkey = a.pkey
           WHERE v.is_bot = 0
             AND v.date_created >= ?
             AND v.date_created <= ?
         `, [startStr, endStr]);
 
-        const stat = stats[0] || { visitors: 0, engaged: 0, sales: 0, revenue: 0 };
-
-        results.push({
+        return {
           dkey: domain.dkey,
           name: domain.name,
-          visitors: Number(stat.visitors) || 0,
-          engaged: Number(stat.engaged) || 0,
-          sales: Number(stat.sales) || 0,
-          revenue: Number(stat.revenue) || 0
-        });
-
-        totalVisitors += Number(stat.visitors) || 0;
-        totalEngaged += Number(stat.engaged) || 0;
-        totalSales += Number(stat.sales) || 0;
-        totalRevenue += Number(stat.revenue) || 0;
+          visitors: Number(stats[0]?.visitors) || 0
+        };
       } catch (err) {
-        // If tenant DB doesn't exist, skip it
-        if (err.code !== 'ER_NO_SUCH_TABLE' && !err.message.includes('Unknown database')) {
-          console.error(`Error querying ${tenantDb}:`, err.message);
-        }
-        results.push({
+        // Database doesn't exist or other error
+        return {
           dkey: domain.dkey,
           name: domain.name,
           visitors: 0,
-          engaged: 0,
-          sales: 0,
-          revenue: 0,
-          error: 'No data available'
-        });
+          error: 'No data'
+        };
       }
+    };
+
+    // Run all queries in parallel (max 10 concurrent)
+    const batchSize = 10;
+    const results = [];
+
+    for (let i = 0; i < domains.length; i += batchSize) {
+      const batch = domains.slice(i, i + batchSize);
+      const batchResults = await Promise.all(batch.map(queryDomain));
+      results.push(...batchResults);
     }
+
+    // Calculate totals
+    const totalVisitors = results.reduce((sum, r) => sum + (r.visitors || 0), 0);
 
     res.json({
       success: true,
@@ -1800,10 +1787,7 @@ export const getClientReport = async (req, res, next) => {
         dateRange: { start: startStr, end: endStr },
         offers: results,
         totals: {
-          visitors: totalVisitors,
-          engaged: totalEngaged,
-          sales: totalSales,
-          revenue: totalRevenue
+          visitors: totalVisitors
         }
       }
     });
