@@ -20,6 +20,7 @@ import SearchEngineMarketing from './pages/reports/SearchEngineMarketing';
 import ImportSales from './pages/reports/ImportSales';
 import HashReport from './pages/reports/HashReport';
 import AveragesReport from './pages/reports/AveragesReport';
+import AdvertiserReport from './pages/reports/AdvertiserReport';
 import ClientManagement from './pages/ClientManagement';
 import IPActions from './pages/IPActions';
 import Settings from './pages/Settings';
@@ -92,6 +93,7 @@ function App() {
 
         {/* Management */}
         <Route path="clients" element={<ClientManagement />} />
+        <Route path="advertisers" element={<AdvertiserReport />} />
         <Route path="ip-actions" element={<IPActions />} />
 
         {/* Settings */}

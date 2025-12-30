@@ -50,6 +50,12 @@ router.get('/channels', fetchController.getChannels);
 router.get('/clients', fetchController.getClients);
 router.get('/clients/:id/report', fetchController.getClientReport);
 
+// Advertisers (admin management)
+router.get('/advertisers', fetchController.getAdvertisers);
+router.post('/advertisers', requireAdmin, fetchController.createAdvertiser);
+router.put('/advertisers/:id', requireAdmin, fetchController.updateAdvertiser);
+router.delete('/advertisers/:id', requireAdmin, fetchController.deleteAdvertiser);
+
 // Conversions
 router.get('/conversions', fetchController.getConversions);
 

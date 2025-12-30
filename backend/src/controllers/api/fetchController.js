@@ -1700,6 +1700,163 @@ export const getClients = async (req, res, next) => {
 };
 
 /**
+ * Fetch all advertisers with full details (admin only)
+ * GET /api/advertisers
+ *
+ * Returns full advertiser data for the Advertiser Report page
+ */
+export const getAdvertisers = async (req, res, next) => {
+  try {
+    // Query from lazysauce.advertiser (main database)
+    const [rows] = await pool.execute(`
+      SELECT
+        aid as id,
+        subscription_type,
+        name,
+        license,
+        date_created,
+        date_updated,
+        date_expired,
+        email,
+        contact_name,
+        db_host,
+        billing_email,
+        amount
+      FROM lazysauce.advertiser
+      ORDER BY aid DESC
+    `);
+
+    res.json({
+      success: true,
+      data: rows
+    });
+  } catch (error) {
+    if (error.code === 'ER_NO_SUCH_TABLE') {
+      return res.json({
+        success: true,
+        data: [],
+        message: 'Advertiser table not configured'
+      });
+    }
+    next(error);
+  }
+};
+
+/**
+ * Update an advertiser field
+ * PUT /api/advertisers/:id
+ */
+export const updateAdvertiser = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Advertiser ID is required'
+      });
+    }
+
+    // Allowed fields to update
+    const allowedFields = [
+      'name', 'license', 'email', 'contact_name',
+      'db_host', 'billing_email', 'amount', 'subscription_type'
+    ];
+
+    const setClauses = [];
+    const values = [];
+
+    for (const [key, value] of Object.entries(updates)) {
+      if (allowedFields.includes(key)) {
+        setClauses.push(`${key} = ?`);
+        values.push(value);
+      }
+    }
+
+    if (setClauses.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No valid fields to update'
+      });
+    }
+
+    // Add date_updated
+    setClauses.push('date_updated = NOW()');
+    values.push(id);
+
+    await pool.execute(
+      `UPDATE lazysauce.advertiser SET ${setClauses.join(', ')} WHERE aid = ?`,
+      values
+    );
+
+    res.json({
+      success: true,
+      message: 'Advertiser updated successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Create a new advertiser
+ * POST /api/advertisers
+ */
+export const createAdvertiser = async (req, res, next) => {
+  try {
+    const { name, license, email, contact_name, db_host, billing_email, amount, subscription_type } = req.body;
+
+    if (!name) {
+      return res.status(400).json({
+        success: false,
+        error: 'Advertiser name is required'
+      });
+    }
+
+    const [result] = await pool.execute(`
+      INSERT INTO lazysauce.advertiser
+        (name, license, email, contact_name, db_host, billing_email, amount, subscription_type, date_created, date_updated)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+    `, [name, license || '', email || '', contact_name || '', db_host || '', billing_email || '', amount || 0, subscription_type || 0]);
+
+    res.json({
+      success: true,
+      data: { id: result.insertId },
+      message: 'Advertiser created successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Delete an advertiser
+ * DELETE /api/advertisers/:id
+ */
+export const deleteAdvertiser = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Advertiser ID is required'
+      });
+    }
+
+    await pool.execute('DELETE FROM lazysauce.advertiser WHERE aid = ?', [id]);
+
+    res.json({
+      success: true,
+      message: 'Advertiser deleted successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Get client/advertiser report - visitor counts for all offers of an advertiser
  * GET /api/clients/:id/report
  * OPTIMIZED: Single UNION ALL query for all domains
@@ -2366,5 +2523,9 @@ export default {
   getAverages,
   getWeeklyAverages,
   getApproximate,
-  getCustomReports
+  getCustomReports,
+  getAdvertisers,
+  updateAdvertiser,
+  createAdvertiser,
+  deleteAdvertiser
 };

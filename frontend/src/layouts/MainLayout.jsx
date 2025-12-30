@@ -26,6 +26,7 @@ import {
   Bell,
   PanelLeftClose,
   PanelLeft,
+  Building2,
 } from 'lucide-react';
 
 const navigation = [
@@ -63,6 +64,7 @@ const navigation = [
     ],
   },
   { name: 'Clients', href: '/clients', icon: Users },
+  { name: 'Advertisers', href: '/advertisers', icon: Building2 },
   { name: 'IP Actions', href: '/ip-actions', icon: Shield },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];

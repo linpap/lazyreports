@@ -233,3 +233,14 @@ export const filtersApi = {
 export const salesApi = {
   importSales: (sales) => api.post('/sales/import', { sales }),
 };
+
+// =====================
+// ADVERTISERS API (Admin)
+// =====================
+
+export const advertisersApi = {
+  getAll: () => api.get('/advertisers'),
+  create: (data) => api.post('/advertisers', data),
+  update: (id, data) => api.put(`/advertisers/${id}`, data),
+  delete: (id) => api.delete(`/advertisers/${id}`),
+};
