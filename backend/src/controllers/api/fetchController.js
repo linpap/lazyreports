@@ -1953,6 +1953,7 @@ export const getAverages = async (req, res, next) => {
  * GET /api/averages/weekly
  *
  * Compares last 7 days against previous 3 weeks' averages by day of week
+ * OPTIMIZED: Uses caching and index-friendly date ranges
  */
 export const getWeeklyAverages = async (req, res, next) => {
   try {
@@ -1974,92 +1975,98 @@ export const getWeeklyAverages = async (req, res, next) => {
       });
     }
 
+    // Check cache first - cache key based on dkey and current date (cache invalidates daily)
+    const today = dayjs().format('YYYY-MM-DD');
+    const cacheKey = getCacheKey({ type: 'weekly-averages', dkey: tenantDkey, date: today });
+    const cachedResult = getCachedResult(cacheKey);
+    if (cachedResult) {
+      return res.json(cachedResult);
+    }
+
     const tenantDb = `lazysauce_${tenantDkey}`;
     const db = pool;
 
-    // Get current week data (last 7 days) by day of week
-    const currentSql = `
+    // Calculate date ranges in JavaScript for index-friendly queries
+    const currentEnd = dayjs().endOf('day').format('YYYY-MM-DD HH:mm:ss');
+    const currentStart = dayjs().subtract(6, 'day').startOf('day').format('YYYY-MM-DD HH:mm:ss');
+    const avgEnd = dayjs().subtract(7, 'day').endOf('day').format('YYYY-MM-DD HH:mm:ss');
+    const avgStart = dayjs().subtract(28, 'day').startOf('day').format('YYYY-MM-DD HH:mm:ss');
+
+    // OPTIMIZED: Single combined query for both current and historical data
+    // Uses index-friendly date range comparisons instead of DATE() function
+    const combinedSql = `
       SELECT
         DAYNAME(v.date_created) as day_of_week,
         DAYOFWEEK(v.date_created) as day_num,
         DATE(v.date_created) as date,
         COUNT(DISTINCT v.pkey) as visitors,
         COALESCE(SUM(a.revenue), 0) as revenue,
-        ROUND(COALESCE(SUM(a.revenue) / NULLIF(COUNT(DISTINCT v.pkey), 0), 0), 2) as epc
+        ROUND(COALESCE(SUM(a.revenue) / NULLIF(COUNT(DISTINCT v.pkey), 0), 0), 2) as epc,
+        CASE
+          WHEN v.date_created >= ? THEN 'current'
+          ELSE 'historical'
+        END as period
       FROM ${tenantDb}.visit v
       LEFT JOIN ${tenantDb}.action a ON v.pkey = a.pkey
       WHERE v.is_bot = 0
-        AND DATE(v.date_created) >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
-        AND DATE(v.date_created) <= CURDATE()
-      GROUP BY DATE(v.date_created), DAYNAME(v.date_created), DAYOFWEEK(v.date_created)
+        AND v.date_created >= ?
+        AND v.date_created <= ?
+      GROUP BY DATE(v.date_created), DAYNAME(v.date_created), DAYOFWEEK(v.date_created),
+        CASE WHEN v.date_created >= ? THEN 'current' ELSE 'historical' END
       ORDER BY DATE(v.date_created) ASC
     `;
 
-    // Get previous 3 weeks' averages by day of week
-    const avgSql = `
-      SELECT
-        DAYNAME(v.date_created) as day_of_week,
-        DAYOFWEEK(v.date_created) as day_num,
-        ROUND(AVG(daily_visitors), 0) as avg_visitors,
-        ROUND(AVG(daily_revenue), 2) as avg_revenue,
-        ROUND(AVG(daily_epc), 2) as avg_epc
-      FROM (
-        SELECT
-          DATE(v.date_created) as date,
-          DAYNAME(v.date_created) as day_name,
-          DAYOFWEEK(v.date_created) as day_num,
-          COUNT(DISTINCT v.pkey) as daily_visitors,
-          COALESCE(SUM(a.revenue), 0) as daily_revenue,
-          ROUND(COALESCE(SUM(a.revenue) / NULLIF(COUNT(DISTINCT v.pkey), 0), 0), 2) as daily_epc
-        FROM ${tenantDb}.visit v
-        LEFT JOIN ${tenantDb}.action a ON v.pkey = a.pkey
-        WHERE v.is_bot = 0
-          AND DATE(v.date_created) >= DATE_SUB(CURDATE(), INTERVAL 28 DAY)
-          AND DATE(v.date_created) < DATE_SUB(CURDATE(), INTERVAL 6 DAY)
-        GROUP BY DATE(v.date_created)
-      ) as daily_stats
-      JOIN ${tenantDb}.visit v ON DAYOFWEEK(v.date_created) = daily_stats.day_num
-      GROUP BY DAYOFWEEK(v.date_created), DAYNAME(v.date_created)
-      ORDER BY DAYOFWEEK(v.date_created)
-    `;
+    const [rows] = await db.query(combinedSql, [currentStart, avgStart, currentEnd, currentStart]);
 
-    // Simpler averages query
-    const avgSqlSimple = `
-      SELECT
-        day_of_week,
-        day_num,
-        ROUND(AVG(daily_visitors), 0) as avg_visitors,
-        ROUND(AVG(daily_revenue), 2) as avg_revenue,
-        ROUND(AVG(daily_epc), 2) as avg_epc
-      FROM (
-        SELECT
-          DAYNAME(v.date_created) as day_of_week,
-          DAYOFWEEK(v.date_created) as day_num,
-          DATE(v.date_created) as date,
-          COUNT(DISTINCT v.pkey) as daily_visitors,
-          COALESCE(SUM(a.revenue), 0) as daily_revenue,
-          ROUND(COALESCE(SUM(a.revenue) / NULLIF(COUNT(DISTINCT v.pkey), 0), 0), 2) as daily_epc
-        FROM ${tenantDb}.visit v
-        LEFT JOIN ${tenantDb}.action a ON v.pkey = a.pkey
-        WHERE v.is_bot = 0
-          AND DATE(v.date_created) >= DATE_SUB(CURDATE(), INTERVAL 28 DAY)
-          AND DATE(v.date_created) < DATE_SUB(CURDATE(), INTERVAL 6 DAY)
-        GROUP BY DATE(v.date_created), DAYNAME(v.date_created), DAYOFWEEK(v.date_created)
-      ) as daily_stats
-      GROUP BY day_of_week, day_num
-      ORDER BY day_num
-    `;
+    // Separate current and historical data
+    const currentRows = rows.filter(r => r.period === 'current');
+    const historicalRows = rows.filter(r => r.period === 'historical');
 
-    const [currentRows] = await db.query(currentSql);
-    const [avgRows] = await db.query(avgSqlSimple);
+    // Calculate averages from historical data by day of week
+    const avgByDayNum = {};
+    historicalRows.forEach(row => {
+      const dayNum = row.day_num;
+      if (!avgByDayNum[dayNum]) {
+        avgByDayNum[dayNum] = {
+          day_of_week: row.day_of_week,
+          day_num: dayNum,
+          visitors: [],
+          revenue: [],
+          epc: []
+        };
+      }
+      avgByDayNum[dayNum].visitors.push(Number(row.visitors));
+      avgByDayNum[dayNum].revenue.push(Number(row.revenue));
+      avgByDayNum[dayNum].epc.push(Number(row.epc));
+    });
 
-    res.json({
+    const avgRows = Object.values(avgByDayNum).map(day => ({
+      day_of_week: day.day_of_week,
+      day_num: day.day_num,
+      avg_visitors: Math.round(day.visitors.reduce((a, b) => a + b, 0) / day.visitors.length) || 0,
+      avg_revenue: Math.round((day.revenue.reduce((a, b) => a + b, 0) / day.revenue.length) * 100) / 100 || 0,
+      avg_epc: Math.round((day.epc.reduce((a, b) => a + b, 0) / day.epc.length) * 100) / 100 || 0
+    })).sort((a, b) => a.day_num - b.day_num);
+
+    const response = {
       success: true,
       data: {
-        current: currentRows,
+        current: currentRows.map(r => ({
+          day_of_week: r.day_of_week,
+          day_num: r.day_num,
+          date: r.date,
+          visitors: r.visitors,
+          revenue: r.revenue,
+          epc: r.epc
+        })),
         averages: avgRows
       }
-    });
+    };
+
+    // Cache the result
+    setCachedResult(cacheKey, response);
+
+    res.json(response);
   } catch (error) {
     next(error);
   }
