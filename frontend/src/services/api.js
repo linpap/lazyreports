@@ -165,6 +165,9 @@ export const dataApi = {
   getRawwords: (params) => api.get('/rawwords', { params }),
 
   runCustomSql: (query) => api.post('/custom-sql', { query }),
+
+  // Custom reports from database (categorized: searchlight, dejavu, client)
+  getCustomReportsFromDB: () => api.get('/custom-reports'),
 };
 
 // =====================

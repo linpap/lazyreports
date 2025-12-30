@@ -2168,6 +2168,85 @@ export const getApproximate = async (req, res, next) => {
   }
 };
 
+/**
+ * Fetch user's custom reports from database
+ * GET /api/custom-reports
+ *
+ * Returns custom reports associated with the user's advertiser accounts
+ * Categorized into: Searchlight (advertiser_id=1), Dejavu (report_id 6,7,8), and Client reports
+ */
+export const getCustomReports = async (req, res, next) => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.json({
+        success: true,
+        data: { searchlight: [], dejavu: [], client: [] }
+      });
+    }
+
+    // Query custom_reports joined with user_advertiser to get reports for this user
+    const [rows] = await analyticsPool.execute(`
+      SELECT
+        cr.report_name,
+        cr.report_link,
+        cr.report_id,
+        cr.advertiser_id
+      FROM custom_reports cr
+      JOIN user_advertiser ua ON cr.advertiser_id = ua.advertiser_id
+      WHERE ua.user_id = ?
+      ORDER BY cr.advertiser_id ASC
+    `, [userId]);
+
+    // Categorize reports
+    const searchlight = [];
+    const dejavu = [];
+    const client = [];
+
+    rows.forEach(row => {
+      const report = {
+        name: row.report_name,
+        link: row.report_link,
+        id: row.report_id,
+        advertiserId: row.advertiser_id
+      };
+
+      // Dejavu reports have report_id 6, 7, or 8
+      if (row.report_id === 6 || row.report_id === 7 || row.report_id === 8) {
+        dejavu.push(report);
+      }
+      // Searchlight reports belong to advertiser_id 1
+      else if (row.advertiser_id === 1) {
+        searchlight.push(report);
+      }
+      // Everything else is a client report
+      else {
+        client.push(report);
+      }
+    });
+
+    res.json({
+      success: true,
+      data: {
+        searchlight,
+        dejavu,
+        client
+      }
+    });
+  } catch (error) {
+    // If table doesn't exist, return empty data
+    if (error.code === 'ER_NO_SUCH_TABLE') {
+      return res.json({
+        success: true,
+        data: { searchlight: [], dejavu: [], client: [] },
+        message: 'Custom reports table not configured'
+      });
+    }
+    next(error);
+  }
+};
+
 export default {
   getUserDomains,
   getDefaultOffer,
@@ -2184,5 +2263,6 @@ export default {
   runCustomSql,
   getAverages,
   getWeeklyAverages,
-  getApproximate
+  getApproximate,
+  getCustomReports
 };

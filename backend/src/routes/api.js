@@ -58,6 +58,9 @@ router.get('/offers', fetchController.getOffers);
 // Raw words / Keywords
 router.get('/rawwords', fetchController.getRawwords);
 
+// Custom Reports (from database)
+router.get('/custom-reports', fetchController.getCustomReports);
+
 // Custom SQL (admin only)
 router.post(
   '/custom-sql',
