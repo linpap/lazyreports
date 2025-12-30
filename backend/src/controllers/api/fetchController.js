@@ -1661,12 +1661,15 @@ export const getChannels = async (req, res, next) => {
 /**
  * Fetch clients
  * GET /api/clients
+ *
+ * Note: This endpoint queries the clients table which may not exist in all installations.
+ * Returns empty array if table doesn't exist.
  */
 export const getClients = async (req, res, next) => {
   try {
     const { active, search, limit = 100, offset = 0 } = req.query;
 
-    let sql = 'SELECT * FROM clients WHERE 1=1';
+    let sql = 'SELECT * FROM lazysauce.clients WHERE 1=1';
     const params = [];
 
     if (active !== undefined) {
@@ -1689,6 +1692,14 @@ export const getClients = async (req, res, next) => {
       data: rows
     });
   } catch (error) {
+    // If table doesn't exist, return empty array instead of error
+    if (error.code === 'ER_NO_SUCH_TABLE') {
+      return res.json({
+        success: true,
+        data: [],
+        message: 'Clients table not configured'
+      });
+    }
     next(error);
   }
 };
