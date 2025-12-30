@@ -95,7 +95,7 @@ export default function CustomReports() {
       // Internal links - try to map to React routes
       const linkMap = {
         '/client-management/': '/clients',
-        '/advertiser-report/': '/reports/analytics?groupBy=channel',
+        '/advertiser-report/': '/advertisers',
         '/domain-report/': '/reports/domain',
         '/affiliate-report/': '/reports/affiliate',
         '/details-report/': '/reports/analytics',
