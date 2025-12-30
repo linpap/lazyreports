@@ -1662,65 +1662,38 @@ export const getChannels = async (req, res, next) => {
  * Fetch clients/advertisers
  * GET /api/clients
  *
- * Returns list of advertisers from lazysauce.advertiser table
- * This matches the PHP client-management functionality
+ * Returns list of advertisers from lazysauce_analytics.advertiser table
+ * This matches the PHP client-management functionality exactly
  */
 export const getClients = async (req, res, next) => {
   try {
     const { search } = req.query;
-    const userId = req.user?.id;
 
-    // Query advertisers - try lazysauce.advertiser first (main table)
-    // Join with user_advertiser in analytics DB to filter by user access
-    let sql = `
-      SELECT DISTINCT a.aid as id, a.name, a.contact_name, a.email, a.date_created
-      FROM lazysauce.advertiser a
-    `;
+    // Query exactly like PHP: SELECT advertiser_id, name FROM advertiser ORDER BY name
+    // Uses analytics database (lazysauce_analytics)
+    let sql = 'SELECT advertiser_id as id, name FROM advertiser';
     const params = [];
 
-    // If not admin, filter by user's advertiser associations
-    if (req.user?.role !== 'admin') {
-      sql += ` JOIN lazysauce_analytics.user_advertiser ua ON a.aid = ua.advertiser_id
-               WHERE ua.user_id = ?`;
-      params.push(userId);
-
-      if (search) {
-        sql += ' AND a.name LIKE ?';
-        params.push(`%${search}%`);
-      }
-    } else if (search) {
-      sql += ' WHERE a.name LIKE ?';
+    if (search) {
+      sql += ' WHERE name LIKE ?';
       params.push(`%${search}%`);
     }
 
-    sql += ' ORDER BY a.name';
+    sql += ' ORDER BY name';
 
-    const [rows] = await pool.execute(sql, params);
+    const [rows] = await analyticsPool.execute(sql, params);
 
     res.json({
       success: true,
       data: rows
     });
   } catch (error) {
-    // Try fallback to analytics DB advertiser table
-    if (error.code === 'ER_NO_SUCH_TABLE' || error.message?.includes('doesn\'t exist')) {
-      try {
-        const [rows] = await analyticsPool.execute(`
-          SELECT advertiser_id as id, name
-          FROM advertiser
-          ORDER BY name
-        `);
-        return res.json({
-          success: true,
-          data: rows
-        });
-      } catch (fallbackError) {
-        return res.json({
-          success: true,
-          data: [],
-          message: 'Advertiser table not configured'
-        });
-      }
+    if (error.code === 'ER_NO_SUCH_TABLE') {
+      return res.json({
+        success: true,
+        data: [],
+        message: 'Advertiser table not configured'
+      });
     }
     next(error);
   }
