@@ -1707,10 +1707,11 @@ export const getClients = async (req, res, next) => {
  */
 export const getAdvertisers = async (req, res, next) => {
   try {
-    // Query from advertiser table (same as getClients, uses analyticsPool)
-    const [rows] = await analyticsPool.execute(`
+    // Query from lazysauce.advertiser (main database) - has full advertiser details with 'aid' column
+    // Note: lazysauce_analytics.advertiser only has advertiser_id and name (used by getClients)
+    const [rows] = await pool.execute(`
       SELECT
-        advertiser_id as id,
+        aid as id,
         subscription_type,
         name,
         license,
@@ -1723,7 +1724,7 @@ export const getAdvertisers = async (req, res, next) => {
         billing_email,
         amount
       FROM advertiser
-      ORDER BY advertiser_id DESC
+      ORDER BY aid DESC
     `);
 
     res.json({
@@ -1785,8 +1786,8 @@ export const updateAdvertiser = async (req, res, next) => {
     setClauses.push('date_updated = NOW()');
     values.push(id);
 
-    await analyticsPool.execute(
-      `UPDATE advertiser SET ${setClauses.join(', ')} WHERE advertiser_id = ?`,
+    await pool.execute(
+      `UPDATE advertiser SET ${setClauses.join(', ')} WHERE aid = ?`,
       values
     );
 
@@ -1814,7 +1815,7 @@ export const createAdvertiser = async (req, res, next) => {
       });
     }
 
-    const [result] = await analyticsPool.execute(`
+    const [result] = await pool.execute(`
       INSERT INTO advertiser
         (name, license, email, contact_name, db_host, billing_email, amount, subscription_type, date_created, date_updated)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
@@ -1845,7 +1846,7 @@ export const deleteAdvertiser = async (req, res, next) => {
       });
     }
 
-    await analyticsPool.execute('DELETE FROM advertiser WHERE advertiser_id = ?', [id]);
+    await pool.execute('DELETE FROM advertiser WHERE aid = ?', [id]);
 
     res.json({
       success: true,
