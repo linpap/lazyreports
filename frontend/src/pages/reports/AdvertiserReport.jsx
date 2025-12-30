@@ -368,7 +368,7 @@ export default function AdvertiserReport() {
                           {advertiser.billing_email || '-'}
                         </td>
                         <td className="px-3 py-2 text-sm text-secondary-600">
-                          ${advertiser.amount?.toFixed(2) || '0.00'}
+                          ${Number(advertiser.amount || 0).toFixed(2)}
                         </td>
                         <td className="px-3 py-2">
                           <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${
