@@ -1,23 +1,20 @@
 import { useQuery } from '@tanstack/react-query';
-import { dataApi } from '../../services/api';
+import { analyticsApi } from '../../services/api';
 import { useFilterStore } from '../../store/filterStore';
 import DateRangePicker from '../../components/common/DateRangePicker';
 import DataTable from '../../components/common/DataTable';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 
 const columns = [
-  { key: 'domain', label: 'Domain' },
-  { key: 'clicks', label: 'Clicks', render: (v) => v?.toLocaleString() || '0' },
-  { key: 'conversions', label: 'Conversions', render: (v) => v?.toLocaleString() || '0' },
-  { key: 'revenue', label: 'Revenue', render: (v) => `$${(v || 0).toLocaleString()}` },
-  {
-    key: 'conversion_rate',
-    label: 'Conv. Rate',
-    render: (_, row) => {
-      const rate = row.clicks > 0 ? ((row.conversions / row.clicks) * 100).toFixed(2) : 0;
-      return `${rate}%`;
-    },
-  },
+  { key: 'label', label: 'Domain' },
+  { key: 'visitors', label: 'Visitors', render: (v) => v?.toLocaleString() || '0' },
+  { key: 'engaged', label: 'Engaged', render: (v) => v?.toLocaleString() || '0' },
+  { key: 'engage_rate', label: 'Engage %', render: (v) => `${v || 0}%` },
+  { key: 'sales', label: 'Sales', render: (v) => v?.toLocaleString() || '0' },
+  { key: 'sales_rate', label: 'Sales %', render: (v) => `${v || 0}%` },
+  { key: 'revenue', label: 'Revenue', render: (v) => `$${Number(v || 0).toLocaleString()}` },
+  { key: 'aov', label: 'AOV', render: (v) => `$${Number(v || 0).toLocaleString()}` },
+  { key: 'epc', label: 'EPC', render: (v) => `$${Number(v || 0).toFixed(4)}` },
 ];
 
 export default function DomainReport() {
@@ -25,7 +22,7 @@ export default function DomainReport() {
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['domain-report', startDate, endDate],
-    queryFn: () => dataApi.getRawwords({ ...getQueryParams(), type: 'domain' }),
+    queryFn: () => analyticsApi.getAnalyticsReport({ ...getQueryParams(), groupBy: 'source_domain' }),
   });
 
   const reportData = data?.data?.data || [];
