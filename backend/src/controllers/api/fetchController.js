@@ -1971,17 +1971,19 @@ export const getClientReport = async (req, res, next) => {
 export const getUserDomainReport = async (req, res, next) => {
   try {
     const { limit = 50, offset = 0 } = req.query;
+    const limitNum = parseInt(limit) || 50;
+    const offsetNum = parseInt(offset) || 0;
 
     // Query lazysauce.domain table - use SELECT * to get all columns
-    const [rows] = await pool.execute(`
+    const [rows] = await pool.query(`
       SELECT
         d.*,
         a.name as advertiser_name
       FROM lazysauce.domain d
       LEFT JOIN lazysauce.advertiser a ON d.aid = a.aid
       ORDER BY d.date_updated DESC
-      LIMIT ? OFFSET ?
-    `, [parseInt(limit), parseInt(offset)]);
+      LIMIT ${limitNum} OFFSET ${offsetNum}
+    `);
 
     // Get total count for pagination
     const [countResult] = await pool.execute(`
@@ -1999,9 +2001,9 @@ export const getUserDomainReport = async (req, res, next) => {
       data: rows,
       pagination: {
         total,
-        limit: parseInt(limit),
-        offset: parseInt(offset),
-        pages: Math.ceil(total / parseInt(limit))
+        limit: limitNum,
+        offset: offsetNum,
+        pages: Math.ceil(total / limitNum)
       },
       advertisers
     });
