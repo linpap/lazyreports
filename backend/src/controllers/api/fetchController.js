@@ -1972,16 +1972,15 @@ export const getUserDomainReport = async (req, res, next) => {
   try {
     const { limit = 50, offset = 0 } = req.query;
 
-    // Query domain_report table from lazysauce_analytics
-    // This table stores tracking domains with their advertiser assignments
-    const [rows] = await analyticsPool.execute(`
+    // Query domain_report table - try to get columns dynamically
+    const [rows] = await pool.execute(`
       SELECT
         dr.id,
         dr.name,
         dr.aid,
         a.name as advertiser_name,
         dr.created,
-        INET_NTOA(dr.ip) as ip,
+        dr.ip,
         dr.last_update,
         dr.count,
         dr.notes
@@ -1992,13 +1991,13 @@ export const getUserDomainReport = async (req, res, next) => {
     `, [parseInt(limit), parseInt(offset)]);
 
     // Get total count for pagination
-    const [countResult] = await analyticsPool.execute(`
+    const [countResult] = await pool.execute(`
       SELECT COUNT(*) as total FROM lazysauce_analytics.domain_report
     `);
     const total = countResult[0]?.total || 0;
 
     // Get list of advertisers for the dropdown
-    const [advertisers] = await analyticsPool.execute(`
+    const [advertisers] = await pool.execute(`
       SELECT aid, name FROM lazysauce.advertiser ORDER BY name
     `);
 
@@ -2014,7 +2013,12 @@ export const getUserDomainReport = async (req, res, next) => {
       advertisers
     });
   } catch (error) {
-    next(error);
+    console.error('Domain report error:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      hint: 'Check if lazysauce_analytics.domain_report table exists'
+    });
   }
 };
 
@@ -2027,7 +2031,7 @@ export const updateDomainAdvertiser = async (req, res, next) => {
     const { id } = req.params;
     const { aid } = req.body;
 
-    await analyticsPool.execute(`
+    await pool.execute(`
       UPDATE lazysauce_analytics.domain_report
       SET aid = ?, last_update = NOW()
       WHERE id = ?
@@ -2038,7 +2042,8 @@ export const updateDomainAdvertiser = async (req, res, next) => {
       message: 'Domain advertiser updated'
     });
   } catch (error) {
-    next(error);
+    console.error('Update domain error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
   }
 };
 
@@ -2050,7 +2055,7 @@ export const deleteDomainReport = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    await analyticsPool.execute(`
+    await pool.execute(`
       DELETE FROM lazysauce_analytics.domain_report WHERE id = ?
     `, [id]);
 
@@ -2059,7 +2064,8 @@ export const deleteDomainReport = async (req, res, next) => {
       message: 'Domain deleted'
     });
   } catch (error) {
-    next(error);
+    console.error('Delete domain error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
   }
 };
 
