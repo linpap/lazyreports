@@ -50,8 +50,10 @@ router.get('/channels', fetchController.getChannels);
 router.get('/clients', fetchController.getClients);
 router.get('/clients/:id/report', fetchController.getClientReport);
 
-// Domain Report (across all user's domains)
+// Domain Report (tracking domains inventory)
 router.get('/domain-report', fetchController.getUserDomainReport);
+router.put('/domain-report/:id', fetchController.updateDomainAdvertiser);
+router.delete('/domain-report/:id', fetchController.deleteDomainReport);
 
 // Advertisers (owner management - matches PHP isOwner check)
 router.get('/advertisers', fetchController.getAdvertisers);

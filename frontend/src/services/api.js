@@ -111,8 +111,10 @@ export const analyticsApi = {
   // Full analytics report with grouping support
   getAnalyticsReport: (params) => api.get('/analytics/report', { params }),
 
-  // Domain report - performance across all user's domains
+  // Domain report - tracking domains inventory
   getDomainReport: (params) => api.get('/domain-report', { params }),
+  updateDomainAdvertiser: (id, aid) => api.put(`/domain-report/${id}`, { aid }),
+  deleteDomain: (id) => api.delete(`/domain-report/${id}`),
 
   // Get detail records (visitors, engaged, sales)
   getAnalyticsDetail: (params) => api.get('/analytics/detail', { params }),

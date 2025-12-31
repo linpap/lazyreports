@@ -1964,103 +1964,99 @@ export const getClientReport = async (req, res, next) => {
 };
 
 /**
- * Get user's domain report - performance across all domains the user has access to
+ * Get domain report - list of tracking domains with advertiser assignments
  * GET /api/domain-report
- * Returns: visitors, engaged, sales, revenue, etc. for each domain
+ * Matches PHP domain-report page showing domain inventory
  */
 export const getUserDomainReport = async (req, res, next) => {
   try {
-    const { startDate, endDate } = req.query;
-    const userId = req.user?.id;
+    const { limit = 50, offset = 0 } = req.query;
 
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        error: 'Authentication required'
-      });
-    }
+    // Query domain_report table from lazysauce_analytics
+    // This table stores tracking domains with their advertiser assignments
+    const [rows] = await analyticsPool.execute(`
+      SELECT
+        dr.id,
+        dr.name,
+        dr.aid,
+        a.name as advertiser_name,
+        dr.created,
+        INET_NTOA(dr.ip) as ip,
+        dr.last_update,
+        dr.count,
+        dr.notes
+      FROM lazysauce_analytics.domain_report dr
+      LEFT JOIN lazysauce.advertiser a ON dr.aid = a.aid
+      ORDER BY dr.last_update DESC
+      LIMIT ? OFFSET ?
+    `, [parseInt(limit), parseInt(offset)]);
 
-    // Get all domains the user has access to
-    const [domains] = await analyticsPool.execute(`
-      SELECT DISTINCT d.dkey, d.name
-      FROM lazysauce.domain d
-      JOIN lazysauce_analytics.user_advertiser ua ON ua.advertiser_id = d.aid
-      WHERE ua.user_id = ?
-    `, [userId]);
+    // Get total count for pagination
+    const [countResult] = await analyticsPool.execute(`
+      SELECT COUNT(*) as total FROM lazysauce_analytics.domain_report
+    `);
+    const total = countResult[0]?.total || 0;
 
-    if (domains.length === 0) {
-      return res.json({
-        success: true,
-        data: [],
-        message: 'No domains configured for this user'
-      });
-    }
-
-    // Calculate date range
-    const end = endDate ? dayjs(endDate) : dayjs();
-    const start = startDate ? dayjs(startDate) : end.subtract(7, 'day');
-    const startStr = start.startOf('day').format('YYYY-MM-DD HH:mm:ss');
-    const endStr = end.endOf('day').format('YYYY-MM-DD HH:mm:ss');
-
-    // Build queries for each domain with full metrics
-    const results = [];
-
-    for (const domain of domains) {
-      try {
-        const [rows] = await pool.query(`
-          SELECT
-            COUNT(DISTINCT v.pkey) as visitors,
-            COUNT(DISTINCT CASE WHEN a.action > 1 THEN v.pkey END) as engaged,
-            ROUND(COUNT(DISTINCT CASE WHEN a.action > 1 THEN v.pkey END) / NULLIF(COUNT(DISTINCT v.pkey), 0) * 100, 2) as engage_rate,
-            COUNT(CASE WHEN a.revenue > 0 THEN 1 END) as sales,
-            ROUND(COUNT(CASE WHEN a.revenue > 0 THEN 1 END) / NULLIF(COUNT(DISTINCT v.pkey), 0) * 100, 2) as sales_rate,
-            COALESCE(SUM(a.revenue), 0) as revenue,
-            ROUND(COALESCE(SUM(a.revenue) / NULLIF(COUNT(CASE WHEN a.revenue > 0 THEN 1 END), 0), 0), 2) as aov,
-            ROUND(COALESCE(SUM(a.revenue) / NULLIF(COUNT(DISTINCT v.pkey), 0), 0), 4) as epc
-          FROM lazysauce_${domain.dkey}.visit v
-          LEFT JOIN lazysauce_${domain.dkey}.action a ON v.pkey = a.pkey
-          WHERE v.is_bot = 0
-            AND v.date_created >= '${startStr}'
-            AND v.date_created <= '${endStr}'
-        `);
-
-        results.push({
-          label: domain.name,
-          dkey: domain.dkey,
-          visitors: Number(rows[0]?.visitors) || 0,
-          engaged: Number(rows[0]?.engaged) || 0,
-          engage_rate: Number(rows[0]?.engage_rate) || 0,
-          sales: Number(rows[0]?.sales) || 0,
-          sales_rate: Number(rows[0]?.sales_rate) || 0,
-          revenue: Number(rows[0]?.revenue) || 0,
-          aov: Number(rows[0]?.aov) || 0,
-          epc: Number(rows[0]?.epc) || 0
-        });
-      } catch (e) {
-        // Domain database might not exist
-        results.push({
-          label: domain.name,
-          dkey: domain.dkey,
-          visitors: 0,
-          engaged: 0,
-          engage_rate: 0,
-          sales: 0,
-          sales_rate: 0,
-          revenue: 0,
-          aov: 0,
-          epc: 0,
-          error: 'No data available'
-        });
-      }
-    }
-
-    // Sort by visitors desc
-    results.sort((a, b) => b.visitors - a.visitors);
+    // Get list of advertisers for the dropdown
+    const [advertisers] = await analyticsPool.execute(`
+      SELECT aid, name FROM lazysauce.advertiser ORDER BY name
+    `);
 
     res.json({
       success: true,
-      data: results,
-      dateRange: { start: startStr, end: endStr }
+      data: rows,
+      pagination: {
+        total,
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+        pages: Math.ceil(total / parseInt(limit))
+      },
+      advertisers
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Update domain advertiser assignment
+ * PUT /api/domain-report/:id
+ */
+export const updateDomainAdvertiser = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { aid } = req.body;
+
+    await analyticsPool.execute(`
+      UPDATE lazysauce_analytics.domain_report
+      SET aid = ?, last_update = NOW()
+      WHERE id = ?
+    `, [aid || null, id]);
+
+    res.json({
+      success: true,
+      message: 'Domain advertiser updated'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Delete a domain from domain report
+ * DELETE /api/domain-report/:id
+ */
+export const deleteDomainReport = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    await analyticsPool.execute(`
+      DELETE FROM lazysauce_analytics.domain_report WHERE id = ?
+    `, [id]);
+
+    res.json({
+      success: true,
+      message: 'Domain deleted'
     });
   } catch (error) {
     next(error);
