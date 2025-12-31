@@ -1972,18 +1972,11 @@ export const getUserDomainReport = async (req, res, next) => {
   try {
     const { limit = 50, offset = 0 } = req.query;
 
-    // Query lazysauce.domain table
+    // Query lazysauce.domain table - use SELECT * to get all columns
     const [rows] = await pool.execute(`
       SELECT
-        d.id,
-        d.name,
-        d.aid,
-        a.name as advertiser_name,
-        d.created,
-        d.ip,
-        d.last_update,
-        d.count,
-        d.notes
+        d.*,
+        a.name as advertiser_name
       FROM lazysauce.domain d
       LEFT JOIN lazysauce.advertiser a ON d.aid = a.aid
       ORDER BY d.last_update DESC
@@ -2023,18 +2016,18 @@ export const getUserDomainReport = async (req, res, next) => {
 
 /**
  * Update domain advertiser assignment
- * PUT /api/domain-report/:id
+ * PUT /api/domain-report/:dkey
  */
 export const updateDomainAdvertiser = async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const { dkey } = req.params;
     const { aid } = req.body;
 
     await pool.execute(`
       UPDATE lazysauce.domain
-      SET aid = ?, last_update = NOW()
-      WHERE id = ?
-    `, [aid || null, id]);
+      SET aid = ?
+      WHERE dkey = ?
+    `, [aid || null, dkey]);
 
     res.json({
       success: true,
@@ -2048,15 +2041,15 @@ export const updateDomainAdvertiser = async (req, res, next) => {
 
 /**
  * Delete a domain from domain report
- * DELETE /api/domain-report/:id
+ * DELETE /api/domain-report/:dkey
  */
 export const deleteDomainReport = async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const { dkey } = req.params;
 
     await pool.execute(`
-      DELETE FROM lazysauce.domain WHERE id = ?
-    `, [id]);
+      DELETE FROM lazysauce.domain WHERE dkey = ?
+    `, [dkey]);
 
     res.json({
       success: true,

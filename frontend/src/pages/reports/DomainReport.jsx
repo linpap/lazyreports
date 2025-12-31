@@ -18,26 +18,26 @@ export default function DomainReport() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, aid }) => analyticsApi.updateDomainAdvertiser(id, aid),
+    mutationFn: ({ dkey, aid }) => analyticsApi.updateDomainAdvertiser(dkey, aid),
     onSuccess: () => {
       queryClient.invalidateQueries(['domain-report']);
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => analyticsApi.deleteDomain(id),
+    mutationFn: (dkey) => analyticsApi.deleteDomain(dkey),
     onSuccess: () => {
       queryClient.invalidateQueries(['domain-report']);
     },
   });
 
-  const handleAdvertiserChange = (id, aid) => {
-    updateMutation.mutate({ id, aid: aid || null });
+  const handleAdvertiserChange = (dkey, aid) => {
+    updateMutation.mutate({ dkey, aid: aid || null });
   };
 
-  const handleDelete = (id, name) => {
+  const handleDelete = (dkey, name) => {
     if (window.confirm(`Are you sure you want to delete "${name}"?`)) {
-      deleteMutation.mutate(id);
+      deleteMutation.mutate(dkey);
     }
   };
 
@@ -120,14 +120,14 @@ export default function DomainReport() {
                   </tr>
                 ) : (
                   reportData.map((row) => (
-                    <tr key={row.id} className="hover:bg-secondary-50">
+                    <tr key={row.dkey} className="hover:bg-secondary-50">
                       <td className="px-4 py-3 text-sm text-secondary-900">
                         {row.name}
                       </td>
                       <td className="px-4 py-3">
                         <select
                           value={row.aid || ''}
-                          onChange={(e) => handleAdvertiserChange(row.id, e.target.value)}
+                          onChange={(e) => handleAdvertiserChange(row.dkey, e.target.value)}
                           className="border border-secondary-300 rounded px-2 py-1 text-sm w-full max-w-[150px]"
                           disabled={updateMutation.isLoading}
                         >
@@ -156,7 +156,7 @@ export default function DomainReport() {
                       </td>
                       <td className="px-4 py-3">
                         <button
-                          onClick={() => handleDelete(row.id, row.name)}
+                          onClick={() => handleDelete(row.dkey, row.name)}
                           className="text-red-600 hover:text-red-800 text-sm font-medium"
                           disabled={deleteMutation.isLoading}
                         >

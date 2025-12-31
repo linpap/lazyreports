@@ -113,8 +113,8 @@ export const analyticsApi = {
 
   // Domain report - tracking domains inventory
   getDomainReport: (params) => api.get('/domain-report', { params }),
-  updateDomainAdvertiser: (id, aid) => api.put(`/domain-report/${id}`, { aid }),
-  deleteDomain: (id) => api.delete(`/domain-report/${id}`),
+  updateDomainAdvertiser: (dkey, aid) => api.put(`/domain-report/${dkey}`, { aid }),
+  deleteDomain: (dkey) => api.delete(`/domain-report/${dkey}`),
 
   // Get detail records (visitors, engaged, sales)
   getAnalyticsDetail: (params) => api.get('/analytics/detail', { params }),
