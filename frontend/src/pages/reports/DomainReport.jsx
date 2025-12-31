@@ -18,11 +18,11 @@ const columns = [
 ];
 
 export default function DomainReport() {
-  const { startDate, endDate, getQueryParams } = useFilterStore();
+  const { startDate, endDate } = useFilterStore();
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['domain-report', startDate, endDate],
-    queryFn: () => analyticsApi.getAnalyticsReport({ ...getQueryParams(), groupBy: 'source_domain' }),
+    queryFn: () => analyticsApi.getDomainReport({ startDate, endDate }),
   });
 
   const reportData = data?.data?.data || [];
@@ -33,7 +33,7 @@ export default function DomainReport() {
         <div>
           <h1 className="text-2xl font-bold text-secondary-900">Domain Report</h1>
           <p className="text-secondary-600 mt-1">
-            Performance breakdown by domain
+            Performance across all your domains/offers
           </p>
         </div>
         <DateRangePicker />

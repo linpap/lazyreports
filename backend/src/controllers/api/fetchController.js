@@ -1964,6 +1964,110 @@ export const getClientReport = async (req, res, next) => {
 };
 
 /**
+ * Get user's domain report - performance across all domains the user has access to
+ * GET /api/domain-report
+ * Returns: visitors, engaged, sales, revenue, etc. for each domain
+ */
+export const getUserDomainReport = async (req, res, next) => {
+  try {
+    const { startDate, endDate } = req.query;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: 'Authentication required'
+      });
+    }
+
+    // Get all domains the user has access to
+    const [domains] = await analyticsPool.execute(`
+      SELECT DISTINCT d.dkey, d.name
+      FROM lazysauce.domain d
+      JOIN lazysauce_analytics.user_advertiser ua ON ua.advertiser_id = d.aid
+      WHERE ua.user_id = ?
+    `, [userId]);
+
+    if (domains.length === 0) {
+      return res.json({
+        success: true,
+        data: [],
+        message: 'No domains configured for this user'
+      });
+    }
+
+    // Calculate date range
+    const end = endDate ? dayjs(endDate) : dayjs();
+    const start = startDate ? dayjs(startDate) : end.subtract(7, 'day');
+    const startStr = start.startOf('day').format('YYYY-MM-DD HH:mm:ss');
+    const endStr = end.endOf('day').format('YYYY-MM-DD HH:mm:ss');
+
+    // Build queries for each domain with full metrics
+    const results = [];
+
+    for (const domain of domains) {
+      try {
+        const [rows] = await pool.query(`
+          SELECT
+            COUNT(DISTINCT v.pkey) as visitors,
+            COUNT(DISTINCT CASE WHEN a.action > 1 THEN v.pkey END) as engaged,
+            ROUND(COUNT(DISTINCT CASE WHEN a.action > 1 THEN v.pkey END) / NULLIF(COUNT(DISTINCT v.pkey), 0) * 100, 2) as engage_rate,
+            COUNT(CASE WHEN a.revenue > 0 THEN 1 END) as sales,
+            ROUND(COUNT(CASE WHEN a.revenue > 0 THEN 1 END) / NULLIF(COUNT(DISTINCT v.pkey), 0) * 100, 2) as sales_rate,
+            COALESCE(SUM(a.revenue), 0) as revenue,
+            ROUND(COALESCE(SUM(a.revenue) / NULLIF(COUNT(CASE WHEN a.revenue > 0 THEN 1 END), 0), 0), 2) as aov,
+            ROUND(COALESCE(SUM(a.revenue) / NULLIF(COUNT(DISTINCT v.pkey), 0), 0), 4) as epc
+          FROM lazysauce_${domain.dkey}.visit v
+          LEFT JOIN lazysauce_${domain.dkey}.action a ON v.pkey = a.pkey
+          WHERE v.is_bot = 0
+            AND v.date_created >= '${startStr}'
+            AND v.date_created <= '${endStr}'
+        `);
+
+        results.push({
+          label: domain.name,
+          dkey: domain.dkey,
+          visitors: Number(rows[0]?.visitors) || 0,
+          engaged: Number(rows[0]?.engaged) || 0,
+          engage_rate: Number(rows[0]?.engage_rate) || 0,
+          sales: Number(rows[0]?.sales) || 0,
+          sales_rate: Number(rows[0]?.sales_rate) || 0,
+          revenue: Number(rows[0]?.revenue) || 0,
+          aov: Number(rows[0]?.aov) || 0,
+          epc: Number(rows[0]?.epc) || 0
+        });
+      } catch (e) {
+        // Domain database might not exist
+        results.push({
+          label: domain.name,
+          dkey: domain.dkey,
+          visitors: 0,
+          engaged: 0,
+          engage_rate: 0,
+          sales: 0,
+          sales_rate: 0,
+          revenue: 0,
+          aov: 0,
+          epc: 0,
+          error: 'No data available'
+        });
+      }
+    }
+
+    // Sort by visitors desc
+    results.sort((a, b) => b.visitors - a.visitors);
+
+    res.json({
+      success: true,
+      data: results,
+      dateRange: { start: startStr, end: endStr }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Fetch conversions
  * GET /api/conversions
  */

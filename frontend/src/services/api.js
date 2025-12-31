@@ -111,6 +111,9 @@ export const analyticsApi = {
   // Full analytics report with grouping support
   getAnalyticsReport: (params) => api.get('/analytics/report', { params }),
 
+  // Domain report - performance across all user's domains
+  getDomainReport: (params) => api.get('/domain-report', { params }),
+
   // Get detail records (visitors, engaged, sales)
   getAnalyticsDetail: (params) => api.get('/analytics/detail', { params }),
 
