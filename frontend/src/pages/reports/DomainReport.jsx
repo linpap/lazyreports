@@ -41,9 +41,15 @@ export default function DomainReport() {
     }
   };
 
+  // Debug: log the response
+  console.log('Domain report response:', data);
+
   const reportData = data?.data?.data || [];
   const pagination = data?.data?.pagination || { total: 0, pages: 1 };
   const advertisers = data?.data?.advertisers || [];
+
+  // Debug: log extracted data
+  console.log('Report data:', reportData, 'Pagination:', pagination);
 
   const formatDate = (dateStr) => {
     if (!dateStr) return '-';
