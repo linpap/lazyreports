@@ -1972,27 +1972,27 @@ export const getUserDomainReport = async (req, res, next) => {
   try {
     const { limit = 50, offset = 0 } = req.query;
 
-    // Query domain_report table - try to get columns dynamically
+    // Query lazysauce.domain table
     const [rows] = await pool.execute(`
       SELECT
-        dr.id,
-        dr.name,
-        dr.aid,
+        d.id,
+        d.name,
+        d.aid,
         a.name as advertiser_name,
-        dr.created,
-        dr.ip,
-        dr.last_update,
-        dr.count,
-        dr.notes
-      FROM lazysauce_analytics.domain_report dr
-      LEFT JOIN lazysauce.advertiser a ON dr.aid = a.aid
-      ORDER BY dr.last_update DESC
+        d.created,
+        d.ip,
+        d.last_update,
+        d.count,
+        d.notes
+      FROM lazysauce.domain d
+      LEFT JOIN lazysauce.advertiser a ON d.aid = a.aid
+      ORDER BY d.last_update DESC
       LIMIT ? OFFSET ?
     `, [parseInt(limit), parseInt(offset)]);
 
     // Get total count for pagination
     const [countResult] = await pool.execute(`
-      SELECT COUNT(*) as total FROM lazysauce_analytics.domain_report
+      SELECT COUNT(*) as total FROM lazysauce.domain
     `);
     const total = countResult[0]?.total || 0;
 
@@ -2016,8 +2016,7 @@ export const getUserDomainReport = async (req, res, next) => {
     console.error('Domain report error:', error.message);
     res.status(500).json({
       success: false,
-      error: error.message,
-      hint: 'Check if lazysauce_analytics.domain_report table exists'
+      error: error.message
     });
   }
 };
@@ -2032,7 +2031,7 @@ export const updateDomainAdvertiser = async (req, res, next) => {
     const { aid } = req.body;
 
     await pool.execute(`
-      UPDATE lazysauce_analytics.domain_report
+      UPDATE lazysauce.domain
       SET aid = ?, last_update = NOW()
       WHERE id = ?
     `, [aid || null, id]);
@@ -2056,7 +2055,7 @@ export const deleteDomainReport = async (req, res, next) => {
     const { id } = req.params;
 
     await pool.execute(`
-      DELETE FROM lazysauce_analytics.domain_report WHERE id = ?
+      DELETE FROM lazysauce.domain WHERE id = ?
     `, [id]);
 
     res.json({
