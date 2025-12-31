@@ -41,15 +41,9 @@ export default function DomainReport() {
     }
   };
 
-  // Debug: log the response
-  console.log('Domain report response:', data);
-
   const reportData = data?.data?.data || [];
   const pagination = data?.data?.pagination || { total: 0, pages: 1 };
   const advertisers = data?.data?.advertisers || [];
-
-  // Debug: log extracted data
-  console.log('Report data:', reportData, 'Pagination:', pagination);
 
   const formatDate = (dateStr) => {
     if (!dateStr) return '-';
@@ -62,6 +56,17 @@ export default function DomainReport() {
       minute: '2-digit',
       second: '2-digit',
     });
+  };
+
+  // Convert IP buffer to string
+  const formatIP = (ip) => {
+    if (!ip) return '-';
+    if (typeof ip === 'string') return ip;
+    if (ip.type === 'Buffer' && ip.data) {
+      // Convert buffer bytes to IP-like string or just show as chars
+      return ip.data.map(b => String.fromCharCode(b)).join('');
+    }
+    return '-';
   };
 
   const totalPages = pagination.pages || 1;
@@ -132,10 +137,10 @@ export default function DomainReport() {
                       </td>
                       <td className="px-4 py-3">
                         <select
-                          value={row.aid || ''}
+                          value={row.aid ?? ''}
                           onChange={(e) => handleAdvertiserChange(row.dkey, e.target.value)}
                           className="border border-secondary-300 rounded px-2 py-1 text-sm w-full max-w-[150px]"
-                          disabled={updateMutation.isLoading}
+                          disabled={updateMutation.isPending}
                         >
                           <option value="">Unlicensed</option>
                           {advertisers.map((adv) => (
@@ -149,7 +154,7 @@ export default function DomainReport() {
                         {formatDate(row.date_created)}
                       </td>
                       <td className="px-4 py-3 text-sm text-secondary-600 font-mono">
-                        {row.ip || '-'}
+                        {formatIP(row.ip)}
                       </td>
                       <td className="px-4 py-3 text-sm text-secondary-600">
                         {formatDate(row.date_updated)}
@@ -164,7 +169,7 @@ export default function DomainReport() {
                         <button
                           onClick={() => handleDelete(row.dkey, row.name)}
                           className="text-red-600 hover:text-red-800 text-sm font-medium"
-                          disabled={deleteMutation.isLoading}
+                          disabled={deleteMutation.isPending}
                         >
                           Delete
                         </button>
