@@ -140,13 +140,13 @@ export default function DomainReport() {
                         </select>
                       </td>
                       <td className="px-4 py-3 text-sm text-secondary-600">
-                        {formatDate(row.created)}
+                        {formatDate(row.date_created)}
                       </td>
                       <td className="px-4 py-3 text-sm text-secondary-600 font-mono">
                         {row.ip || '-'}
                       </td>
                       <td className="px-4 py-3 text-sm text-secondary-600">
-                        {formatDate(row.last_update)}
+                        {formatDate(row.date_updated)}
                       </td>
                       <td className="px-4 py-3 text-sm text-secondary-900">
                         {row.count?.toLocaleString() || '0'}

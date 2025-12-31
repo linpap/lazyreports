@@ -1979,7 +1979,7 @@ export const getUserDomainReport = async (req, res, next) => {
         a.name as advertiser_name
       FROM lazysauce.domain d
       LEFT JOIN lazysauce.advertiser a ON d.aid = a.aid
-      ORDER BY d.name ASC
+      ORDER BY d.date_updated DESC
       LIMIT ? OFFSET ?
     `, [parseInt(limit), parseInt(offset)]);
 
