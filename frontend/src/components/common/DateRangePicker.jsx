@@ -82,7 +82,7 @@ export default function DateRangePicker() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-lg border border-secondary-200 z-50 animate-fadeIn">
+        <div className="absolute left-0 top-full mt-2 w-80 bg-white rounded-xl shadow-lg border border-secondary-200 z-50 animate-fadeIn">
           {/* Presets */}
           <div className="p-2 border-b border-secondary-200">
             <div className="grid grid-cols-2 gap-1">
