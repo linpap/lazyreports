@@ -59,7 +59,7 @@ export default function ClientManagement() {
       </div>
 
       {/* Controls */}
-      <div className="card p-6 space-y-4">
+      <div className="card p-6 space-y-4 overflow-visible">
         {/* Client Selector */}
         <div>
           <label className="block text-sm font-medium text-secondary-700 mb-2">
