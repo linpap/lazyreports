@@ -68,7 +68,7 @@ export default function DateRangePicker() {
   ).format('MMM D, YYYY')}`;
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className="relative inline-block" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-2 px-4 py-2 bg-white border border-secondary-300 rounded-lg hover:bg-secondary-50 transition-colors"
