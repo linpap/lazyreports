@@ -58,13 +58,19 @@ export default function DomainReport() {
     });
   };
 
-  // Convert IP buffer to string
+  // Format IP address
   const formatIP = (ip) => {
     if (!ip) return '-';
     if (typeof ip === 'string') return ip;
+    // Fallback for Buffer (if backend sends raw bytes)
     if (ip.type === 'Buffer' && ip.data) {
-      // Convert buffer bytes to IP-like string or just show as chars
-      return ip.data.map(b => String.fromCharCode(b)).join('');
+      // Try ASCII conversion first (for string stored in binary)
+      const asAscii = ip.data.map(b => String.fromCharCode(b)).join('');
+      if (/^[\d.]+$/.test(asAscii)) return asAscii;
+      // Otherwise treat as raw IPv4 bytes
+      if (ip.data.length === 4) {
+        return ip.data.join('.');
+      }
     }
     return '-';
   };

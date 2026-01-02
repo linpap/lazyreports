@@ -1974,10 +1974,17 @@ export const getUserDomainReport = async (req, res, next) => {
     const limitNum = parseInt(limit) || 50;
     const offsetNum = parseInt(offset) || 0;
 
-    // Query lazysauce.domain table - use SELECT * to get all columns
+    // Query lazysauce.domain table - convert IP from binary to string
     const [rows] = await pool.query(`
       SELECT
-        d.*,
+        d.dkey,
+        d.name,
+        d.aid,
+        CAST(d.ip AS CHAR) as ip,
+        d.date_created,
+        d.date_updated,
+        d.count,
+        d.notes,
         a.name as advertiser_name
       FROM lazysauce.domain d
       LEFT JOIN lazysauce.advertiser a ON d.aid = a.aid
