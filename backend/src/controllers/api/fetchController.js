@@ -2293,7 +2293,8 @@ export const getConversions = async (req, res, next) => {
     sql += ' ORDER BY a.date_created DESC LIMIT ? OFFSET ?';
     params.push(parseInt(limit), parseInt(offset));
 
-    const [rows] = await pool.execute(sql, params);
+    // Use query() instead of execute() for dynamic table names
+    const [rows] = await pool.query(sql, params);
 
     res.json({
       success: true,
