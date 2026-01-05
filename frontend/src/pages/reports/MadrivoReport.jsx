@@ -18,11 +18,11 @@ const GROUP_BY_OPTIONS = [
 
 const columns = [
   { key: 'label', label: 'Group' },
-  { key: 'visitors', label: 'Visitors', render: (v) => v?.toLocaleString() || '0', sortable: true },
-  { key: 'engaged', label: 'Engaged', render: (v) => v?.toLocaleString() || '0', sortable: true },
-  { key: 'engage_rate', label: 'Engage %', render: (v) => `${(v || 0).toFixed(2)}%`, sortable: true },
-  { key: 'sales', label: 'Sales', render: (v) => v?.toLocaleString() || '0', sortable: true },
-  { key: 'sales_rate', label: 'Conv %', render: (v) => `${(v || 0).toFixed(2)}%`, sortable: true },
+  { key: 'visitors', label: 'Visitors', render: (v) => Number(v || 0).toLocaleString(), sortable: true },
+  { key: 'engaged', label: 'Engaged', render: (v) => Number(v || 0).toLocaleString(), sortable: true },
+  { key: 'engage_rate', label: 'Engage %', render: (v) => `${parseFloat(v || 0).toFixed(2)}%`, sortable: true },
+  { key: 'sales', label: 'Sales', render: (v) => Number(v || 0).toLocaleString(), sortable: true },
+  { key: 'sales_rate', label: 'Conv %', render: (v) => `${parseFloat(v || 0).toFixed(2)}%`, sortable: true },
   { key: 'revenue', label: 'Revenue', render: (v) => `$${parseFloat(v || 0).toFixed(2)}`, sortable: true },
   { key: 'epc', label: 'EPC', render: (v) => `$${parseFloat(v || 0).toFixed(4)}`, sortable: true },
 ];
