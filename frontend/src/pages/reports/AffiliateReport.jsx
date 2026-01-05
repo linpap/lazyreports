@@ -93,9 +93,9 @@ export default function AffiliateReport() {
       </div>
 
       {/* Filters Card */}
-      <div className="card p-6 space-y-4">
+      <div className="card p-6 space-y-4 overflow-visible">
         {/* Offers Selector */}
-        <div>
+        <div className="relative">
           <label className="block text-sm font-semibold text-secondary-700 mb-2">
             Offers:
           </label>
@@ -112,7 +112,7 @@ export default function AffiliateReport() {
         </div>
 
         {/* Date Filter */}
-        <div>
+        <div className="relative">
           <label className="block text-sm font-semibold text-secondary-700 mb-2">
             Set Report Filters:
           </label>
