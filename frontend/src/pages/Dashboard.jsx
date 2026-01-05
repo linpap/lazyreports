@@ -105,13 +105,13 @@ export default function Dashboard() {
     setSelectedDomain(dkey, name);
   };
 
-  // Calculate totals
+  // Calculate totals (parse as numbers since MySQL may return strings)
   const totals = analyticsData.reduce(
     (acc, item) => ({
-      clicks: acc.clicks + (item.clicks || 0),
-      conversions: acc.conversions + (item.conversions || 0),
-      revenue: acc.revenue + (item.revenue || 0),
-      cost: acc.cost + (item.cost || 0),
+      clicks: acc.clicks + Number(item.clicks || 0),
+      conversions: acc.conversions + Number(item.conversions || 0),
+      revenue: acc.revenue + parseFloat(item.revenue || 0),
+      cost: acc.cost + parseFloat(item.cost || 0),
     }),
     { clicks: 0, conversions: 0, revenue: 0, cost: 0 }
   );
@@ -171,7 +171,7 @@ export default function Dashboard() {
         />
         <StatCard
           title="Revenue"
-          value={`$${totals.revenue.toLocaleString()}`}
+          value={`$${totals.revenue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`}
           change={15.3}
           changeType="positive"
           icon={DollarSign}
@@ -296,25 +296,25 @@ export default function Dashboard() {
             <div className="text-center p-4 bg-secondary-50 rounded-lg">
               <p className="text-sm text-secondary-600">Avg. Clicks</p>
               <p className="text-xl font-bold text-secondary-900">
-                {Math.round(averages.avg_clicks || 0).toLocaleString()}
+                {Math.round(Number(averages.avg_clicks) || 0).toLocaleString()}
               </p>
             </div>
             <div className="text-center p-4 bg-secondary-50 rounded-lg">
               <p className="text-sm text-secondary-600">Avg. Conversions</p>
               <p className="text-xl font-bold text-secondary-900">
-                {Math.round(averages.avg_conversions || 0).toLocaleString()}
+                {Math.round(Number(averages.avg_conversions) || 0).toLocaleString()}
               </p>
             </div>
             <div className="text-center p-4 bg-secondary-50 rounded-lg">
               <p className="text-sm text-secondary-600">Avg. Revenue</p>
               <p className="text-xl font-bold text-secondary-900">
-                ${Math.round(averages.avg_revenue || 0).toLocaleString()}
+                ${Math.round(parseFloat(averages.avg_revenue) || 0).toLocaleString()}
               </p>
             </div>
             <div className="text-center p-4 bg-secondary-50 rounded-lg">
               <p className="text-sm text-secondary-600">Avg. Cost</p>
               <p className="text-xl font-bold text-secondary-900">
-                ${Math.round(averages.avg_cost || 0).toLocaleString()}
+                ${Math.round(parseFloat(averages.avg_cost) || 0).toLocaleString()}
               </p>
             </div>
             <div className="text-center p-4 bg-secondary-50 rounded-lg">
