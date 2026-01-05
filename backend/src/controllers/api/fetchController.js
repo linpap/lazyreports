@@ -1397,7 +1397,7 @@ export const getActionDetail = async (req, res, next) => {
  */
 export const getAffiliateAnalytics = async (req, res, next) => {
   try {
-    const { startDate, endDate, affiliateId, dkey } = req.query;
+    const { startDate, endDate, dkey } = req.query;
     const userId = req.user?.id;
     let tenantDkey = dkey;
 
@@ -1418,55 +1418,35 @@ export const getAffiliateAnalytics = async (req, res, next) => {
     }
 
     const tenantDb = `lazysauce_${tenantDkey}`;
-
-    // If affiliateId provided, get affiliate's channel/subchannel for filtering
-    let affiliateFilter = '';
     const params = [];
 
-    if (affiliateId) {
-      // Get affiliate info from affiliate_accounts
-      const [affRows] = await analyticsPool.execute(
-        'SELECT affiliate_channel, affiliate_subchannel, affiliate_percentage, affiliate_payout FROM affiliate_accounts WHERE affiliate_id = ?',
-        [affiliateId]
-      );
-
-      if (affRows.length > 0) {
-        const affiliate = affRows[0];
-        if (affiliate.affiliate_channel) {
-          affiliateFilter += ' AND v.channel = ?';
-          params.push(affiliate.affiliate_channel);
-        }
-        if (affiliate.affiliate_subchannel) {
-          affiliateFilter += ' AND v.subchannel = ?';
-          params.push(affiliate.affiliate_subchannel);
-        }
-      }
-    }
-
+    // Query actions with revenue (conversions) joined with visit and IP data
     let sql = `
       SELECT
-        DATE(v.date_created) as date,
-        v.channel,
-        v.subchannel,
-        COUNT(DISTINCT v.pkey) as clicks,
-        COUNT(CASE WHEN a.revenue > 0 THEN 1 END) as conversions,
-        COALESCE(SUM(a.revenue), 0) as revenue
-      FROM ${tenantDb}.visit v
-      LEFT JOIN ${tenantDb}.action a ON v.pkey = a.pkey
-      WHERE v.is_bot = 0 ${affiliateFilter}
+        CONCAT(?, '_', a.hash) as hash,
+        CAST(COALESCE(a.revenue, 0) AS DECIMAL(10,2)) as revenue,
+        a.date_created as revenue_date,
+        a.logstring,
+        INET6_NTOA(v.ip) as ip_address,
+        ip.org as organization
+      FROM ${tenantDb}.action a
+      JOIN ${tenantDb}.visit v ON a.pkey = v.pkey
+      LEFT JOIN lazysauce.ip ip ON v.ip = ip.address
+      WHERE a.revenue > 0
     `;
+    params.push(tenantDkey);
 
     if (startDate) {
-      sql += ' AND DATE(v.date_created) >= ?';
+      sql += ' AND DATE(a.date_created) >= ?';
       params.push(startDate);
     }
 
     if (endDate) {
-      sql += ' AND DATE(v.date_created) <= ?';
+      sql += ' AND DATE(a.date_created) <= ?';
       params.push(endDate);
     }
 
-    sql += ' GROUP BY DATE(v.date_created), v.channel, v.subchannel ORDER BY date DESC';
+    sql += ' ORDER BY a.revenue DESC, a.date_created DESC';
 
     const [rows] = await pool.execute(sql, params);
 

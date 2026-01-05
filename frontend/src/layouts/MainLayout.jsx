@@ -36,6 +36,7 @@ const navigation = [
     icon: FileText,
     children: [
       { name: 'Analytics', href: '/reports/analytics', icon: BarChart3 },
+      { name: 'Affiliate', href: '/reports/affiliate', icon: Users },
       { name: 'Averages', href: '/reports/averages', icon: Calculator },
       { name: 'Custom Reports', href: '/reports/custom', icon: FileText },
       { name: 'Custom SQL', href: '/reports/sql', icon: Database },

@@ -17,6 +17,7 @@ const QUICK_REPORTS = [
   { id: 'device', name: 'Device Analytics', groupBy: 'device_type', icon: Smartphone, color: 'bg-purple-500' },
   { id: 'keyword', name: 'Keyword Analytics', groupBy: 'keyword', icon: Search, color: 'bg-orange-500' },
   { id: 'rawword', name: 'Rawword Analytics', groupBy: 'rawword', icon: Tag, color: 'bg-pink-500' },
+  { id: 'affiliate', name: 'Affiliate Report', link: '/reports/affiliate', icon: Users, color: 'bg-teal-500' },
 ];
 
 // Report category component matching PHP layout
@@ -84,7 +85,11 @@ export default function CustomReports() {
     customReports.client.length > 0;
 
   const handleQuickReport = (report) => {
-    navigate(`/reports/analytics?groupBy=${report.groupBy}`);
+    if (report.link) {
+      navigate(report.link);
+    } else {
+      navigate(`/reports/analytics?groupBy=${report.groupBy}`);
+    }
   };
 
   const handleCustomReport = (report) => {
