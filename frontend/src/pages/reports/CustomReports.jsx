@@ -102,6 +102,8 @@ export default function CustomReports() {
       window.open(report.link, '_blank');
     } else {
       // Internal links - try to map to React routes
+      // Normalize the link (remove trailing slash for consistent matching)
+      const normalizedLink = report.link.endsWith('/') ? report.link : report.link + '/';
       const linkMap = {
         '/client-management/': '/clients',
         '/advertiser-report/': '/advertisers',
@@ -115,7 +117,7 @@ export default function CustomReports() {
         '/payday-conversion-report/': '/reports/conversions',
         '/madrivo-report/': '/reports/analytics',
       };
-      const mappedLink = linkMap[report.link] || report.link;
+      const mappedLink = linkMap[normalizedLink] || report.link;
       navigate(mappedLink);
     }
   };
