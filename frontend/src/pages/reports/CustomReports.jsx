@@ -22,6 +22,10 @@ const QUICK_REPORTS = [
   { id: 'details', name: 'Details Report', link: '/reports/details', icon: ListDetails, color: 'bg-indigo-500' },
   { id: 'offenders', name: 'Offenders Report', link: '/reports/offenders', icon: AlertTriangle, color: 'bg-red-500' },
   { id: 'victims', name: 'Victims Report', link: '/reports/victims', icon: ShieldAlert, color: 'bg-orange-500' },
+  { id: 'site-conversion', name: 'Site Conversion Report', link: '/reports/site-conversion', icon: BarChart3, color: 'bg-cyan-500' },
+  { id: 'channel-subchannel', name: 'Channel-SubChannel Report', link: '/reports/channel-subchannel', icon: Radio, color: 'bg-violet-500' },
+  { id: 'payday-conversion', name: 'Payday Conversion Report', link: '/reports/payday-conversion', icon: FileText, color: 'bg-amber-500' },
+  { id: 'madrivo', name: 'Madrivo Report', link: '/reports/madrivo', icon: Building2, color: 'bg-emerald-500' },
 ];
 
 // Report category component matching PHP layout
@@ -112,10 +116,11 @@ export default function CustomReports() {
         '/details-report/': '/reports/details',
         '/offenders-report/': '/reports/offenders',
         '/victims-report/': '/reports/victims',
-        '/site-conversion-report/': '/reports/conversions',
-        '/channel-subchannel-report/': '/reports/analytics?groupBy=subchannel',
-        '/payday-conversion-report/': '/reports/conversions',
-        '/madrivo-report/': '/reports/analytics',
+        '/site-conversion-report/': '/reports/site-conversion',
+        '/channel-subchannel-report/': '/reports/channel-subchannel',
+        '/payday-conversion-report/': '/reports/payday-conversion',
+        '/madrivo-report/': '/reports/madrivo',
+        '/madrivo-reports/': '/reports/madrivo',
       };
       const mappedLink = linkMap[normalizedLink] || report.link;
       navigate(mappedLink);

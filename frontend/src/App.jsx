@@ -24,6 +24,10 @@ import AdvertiserReport from './pages/reports/AdvertiserReport';
 import DetailsReport from './pages/reports/DetailsReport';
 import OffendersReport from './pages/reports/OffendersReport';
 import VictimsReport from './pages/reports/VictimsReport';
+import SiteConversionReport from './pages/reports/SiteConversionReport';
+import ChannelSubchannelReport from './pages/reports/ChannelSubchannelReport';
+import PaydayConversionReport from './pages/reports/PaydayConversionReport';
+import MadrivoReport from './pages/reports/MadrivoReport';
 import ClientManagement from './pages/ClientManagement';
 import IPActions from './pages/IPActions';
 import Settings from './pages/Settings';
@@ -95,6 +99,10 @@ function App() {
           <Route path="details" element={<DetailsReport />} />
           <Route path="offenders" element={<OffendersReport />} />
           <Route path="victims" element={<VictimsReport />} />
+          <Route path="site-conversion" element={<SiteConversionReport />} />
+          <Route path="channel-subchannel" element={<ChannelSubchannelReport />} />
+          <Route path="payday-conversion" element={<PaydayConversionReport />} />
+          <Route path="madrivo" element={<MadrivoReport />} />
         </Route>
 
         {/* Management */}
