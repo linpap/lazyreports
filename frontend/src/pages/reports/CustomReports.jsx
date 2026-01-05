@@ -6,7 +6,7 @@ import {
   Plus, Trash2, Edit, Star, Play, ChevronRight,
   Radio, Globe, Smartphone, Search, FileText,
   BarChart3, MapPin, Monitor, Tag, Users, Building2, Eye,
-  AlertTriangle, ShieldAlert, ListDetails
+  AlertTriangle, ShieldAlert, List
 } from 'lucide-react';
 import { reportsApi, dataApi } from '../../services/api';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
@@ -19,7 +19,7 @@ const QUICK_REPORTS = [
   { id: 'keyword', name: 'Keyword Analytics', groupBy: 'keyword', icon: Search, color: 'bg-orange-500' },
   { id: 'rawword', name: 'Rawword Analytics', groupBy: 'rawword', icon: Tag, color: 'bg-pink-500' },
   { id: 'affiliate', name: 'Affiliate Report', link: '/reports/affiliate', icon: Users, color: 'bg-teal-500' },
-  { id: 'details', name: 'Details Report', link: '/reports/details', icon: ListDetails, color: 'bg-indigo-500' },
+  { id: 'details', name: 'Details Report', link: '/reports/details', icon: List, color: 'bg-indigo-500' },
   { id: 'offenders', name: 'Offenders Report', link: '/reports/offenders', icon: AlertTriangle, color: 'bg-red-500' },
   { id: 'victims', name: 'Victims Report', link: '/reports/victims', icon: ShieldAlert, color: 'bg-orange-500' },
   { id: 'site-conversion', name: 'Site Conversion Report', link: '/reports/site-conversion', icon: BarChart3, color: 'bg-cyan-500' },
