@@ -58,18 +58,19 @@ export const errorHandler = (err, req, res, next) => {
     details = err.errors;
   }
 
-  // In production, include error code for debugging but hide stack trace
-  if (process.env.NODE_ENV === 'production' && statusCode === 500) {
-    // Keep original message for debugging, just hide stack
-    details = err.code ? { code: err.code } : null;
-  }
+  // Always include error details for debugging
+  const debugInfo = {
+    code: err.code || null,
+    sqlMessage: err.sqlMessage || null,
+    errno: err.errno || null
+  };
 
   res.status(statusCode).json({
     success: false,
     error: {
       message,
       ...(details && { details }),
-      ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+      debug: debugInfo
     }
   });
 };
