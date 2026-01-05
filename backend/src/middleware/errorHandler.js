@@ -58,10 +58,10 @@ export const errorHandler = (err, req, res, next) => {
     details = err.errors;
   }
 
-  // Don't leak error details in production
+  // In production, include error code for debugging but hide stack trace
   if (process.env.NODE_ENV === 'production' && statusCode === 500) {
-    message = 'Internal Server Error';
-    details = null;
+    // Keep original message for debugging, just hide stack
+    details = err.code ? { code: err.code } : null;
   }
 
   res.status(statusCode).json({
