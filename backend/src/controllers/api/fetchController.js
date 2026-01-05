@@ -1420,7 +1420,8 @@ export const getAffiliateAnalytics = async (req, res, next) => {
     const tenantDb = `lazysauce_${tenantDkey}`;
     const params = [];
 
-    // Query actions with revenue (conversions) joined with visit and IP data
+    // Query only the first conversion (action=1 with revenue) per visitor
+    // This matches PHP behavior which shows one conversion per visitor
     let sql = `
       SELECT
         CONCAT(?, '_', a.hash) as hash,
@@ -1433,6 +1434,11 @@ export const getAffiliateAnalytics = async (req, res, next) => {
       JOIN ${tenantDb}.visit v ON a.pkey = v.pkey
       LEFT JOIN lazysauce.ip ip ON v.ip = ip.address
       WHERE a.revenue > 0
+        AND a.action = (
+          SELECT MIN(a2.action)
+          FROM ${tenantDb}.action a2
+          WHERE a2.pkey = a.pkey AND a2.revenue > 0
+        )
     `;
     params.push(tenantDkey);
 
