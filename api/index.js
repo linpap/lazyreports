@@ -37,10 +37,13 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(compression());
 
 // Health check endpoint
+const BUILD_TIME = new Date().toISOString();
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
+    buildTime: BUILD_TIME,
+    version: '2.0.1',
     environment: process.env.NODE_ENV || 'production'
   });
 });
