@@ -2240,36 +2240,59 @@ export const deleteDomainReport = async (req, res, next) => {
  */
 export const getConversions = async (req, res, next) => {
   try {
-    const { startDate, endDate, offer, affiliate, limit = 100, offset = 0 } = req.query;
-    const db = req.tenantPool || pool;
+    const { startDate, endDate, dkey, limit = 100, offset = 0 } = req.query;
+    const userId = req.user?.id;
+    let tenantDkey = dkey;
 
-    let sql = 'SELECT * FROM conversions WHERE 1=1';
+    // If no explicit dkey, get user's first available domain
+    if (!tenantDkey && userId) {
+      const userDkeys = await getUserDkeys(userId);
+      if (userDkeys.length > 0) {
+        tenantDkey = userDkeys[0].dkey;
+      }
+    }
+
+    // If still no dkey, return empty data
+    if (!tenantDkey) {
+      return res.json({
+        success: true,
+        data: []
+      });
+    }
+
+    const tenantDb = `lazysauce_${tenantDkey}`;
     const params = [];
 
+    // Query actions with revenue (conversions) from tenant database
+    let sql = `
+      SELECT
+        a.pkey as id,
+        a.date_created as created_at,
+        a.hash as offer_id,
+        v.channel as affiliate_id,
+        CAST(COALESCE(a.revenue, 0) AS DECIMAL(10,2)) as amount,
+        CASE WHEN a.revenue > 0 THEN 'approved' ELSE 'pending' END as status,
+        v.subchannel,
+        INET6_NTOA(v.ip) as ip_address
+      FROM ${tenantDb}.action a
+      JOIN ${tenantDb}.visit v ON a.pkey = v.pkey
+      WHERE a.revenue > 0
+    `;
+
     if (startDate) {
-      sql += ' AND DATE(created_at) >= ?';
+      sql += ' AND DATE(a.date_created) >= ?';
       params.push(startDate);
     }
 
     if (endDate) {
-      sql += ' AND DATE(created_at) <= ?';
+      sql += ' AND DATE(a.date_created) <= ?';
       params.push(endDate);
     }
 
-    if (offer) {
-      sql += ' AND offer_id = ?';
-      params.push(offer);
-    }
-
-    if (affiliate) {
-      sql += ' AND affiliate_id = ?';
-      params.push(affiliate);
-    }
-
-    sql += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
+    sql += ' ORDER BY a.date_created DESC LIMIT ? OFFSET ?';
     params.push(parseInt(limit), parseInt(offset));
 
-    const [rows] = await db.execute(sql, params);
+    const [rows] = await pool.execute(sql, params);
 
     res.json({
       success: true,
