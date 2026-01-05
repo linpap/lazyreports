@@ -33,6 +33,8 @@ router.get('/analytics/detail', fetchController.getAnalyticsDetail);
 router.get('/analytics/visitor/:id', fetchController.getVisitorDetail);
 router.get('/analytics/action/:id', fetchController.getActionDetail);
 router.get('/analytics/affiliate', fetchController.getAffiliateAnalytics);
+router.get('/analytics/offenders', fetchController.getOffendersReport);
+router.get('/analytics/victims', fetchController.getVictimsReport);
 router.get('/analytics/map', fetchController.getAnalyticsMap);
 router.get('/averages', fetchController.getAverages);
 router.get('/averages/weekly', fetchController.getWeeklyAverages);

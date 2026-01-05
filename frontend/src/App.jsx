@@ -21,6 +21,9 @@ import ImportSales from './pages/reports/ImportSales';
 import HashReport from './pages/reports/HashReport';
 import AveragesReport from './pages/reports/AveragesReport';
 import AdvertiserReport from './pages/reports/AdvertiserReport';
+import DetailsReport from './pages/reports/DetailsReport';
+import OffendersReport from './pages/reports/OffendersReport';
+import VictimsReport from './pages/reports/VictimsReport';
 import ClientManagement from './pages/ClientManagement';
 import IPActions from './pages/IPActions';
 import Settings from './pages/Settings';
@@ -89,6 +92,9 @@ function App() {
           <Route path="sem" element={<SearchEngineMarketing />} />
           <Route path="import-sales" element={<ImportSales />} />
           <Route path="hash" element={<HashReport />} />
+          <Route path="details" element={<DetailsReport />} />
+          <Route path="offenders" element={<OffendersReport />} />
+          <Route path="victims" element={<VictimsReport />} />
         </Route>
 
         {/* Management */}

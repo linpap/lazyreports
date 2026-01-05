@@ -126,6 +126,12 @@ export const analyticsApi = {
   getAffiliateAnalytics: (params) =>
     api.get('/analytics/affiliate', { params }),
 
+  getOffendersReport: (params) =>
+    api.get('/analytics/offenders', { params }),
+
+  getVictimsReport: (params) =>
+    api.get('/analytics/victims', { params }),
+
   getAnalyticsMap: (params) => api.get('/analytics/map', { params }),
 
   getAverages: (params) => api.get('/averages', { params }),

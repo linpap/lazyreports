@@ -1466,6 +1466,184 @@ export const getAffiliateAnalytics = async (req, res, next) => {
 };
 
 /**
+ * Fetch offenders report data (suspicious visitors)
+ * GET /api/analytics/offenders
+ *
+ * Returns visitors flagged as bots, proxies, crawlers, tor, or high threat level
+ */
+export const getOffendersReport = async (req, res, next) => {
+  try {
+    const { startDate, endDate, channel, dkey } = req.query;
+    const userId = req.user?.id;
+    let tenantDkey = dkey;
+
+    if (!tenantDkey && userId) {
+      const userDkeys = await getUserDkeys(userId);
+      if (userDkeys.length > 0) {
+        tenantDkey = userDkeys[0].dkey;
+      }
+    }
+
+    if (!tenantDkey) {
+      return res.json({
+        success: true,
+        data: []
+      });
+    }
+
+    const tenantDb = `lazysauce_${tenantDkey}`;
+    const params = [];
+
+    let sql = `
+      SELECT
+        v.pkey as visitor_id,
+        v.date_created,
+        INET6_NTOA(v.ip) as ip_address,
+        v.channel,
+        v.subchannel,
+        ip.org as organization,
+        ip.shortcountry as country,
+        CASE
+          WHEN v.is_bot = 1 THEN 'Bot'
+          WHEN ip.is_proxy = 1 THEN CONCAT('Proxy: ', COALESCE(ip.proxy_type, 'Unknown'))
+          WHEN ip.is_crawler = 1 THEN CONCAT('Crawler: ', COALESCE(ip.crawler_name, 'Unknown'))
+          WHEN ip.is_tor = 1 THEN 'Tor'
+          WHEN COALESCE(ip.threat_level, 0) > 0 THEN CONCAT('Threat Level: ', ip.threat_level)
+          ELSE 'Suspicious'
+        END as offender_type,
+        ip.is_proxy,
+        ip.is_crawler,
+        ip.is_tor,
+        ip.threat_level
+      FROM ${tenantDb}.visit v
+      LEFT JOIN lazysauce.ip ip ON v.ip = ip.address
+      WHERE (
+        v.is_bot = 1
+        OR ip.is_proxy = 1
+        OR ip.is_crawler = 1
+        OR ip.is_tor = 1
+        OR COALESCE(ip.threat_level, 0) > 0
+      )
+    `;
+
+    if (startDate) {
+      sql += ' AND DATE(v.date_created) >= ?';
+      params.push(startDate);
+    }
+
+    if (endDate) {
+      sql += ' AND DATE(v.date_created) <= ?';
+      params.push(endDate);
+    }
+
+    if (channel) {
+      sql += ' AND v.channel = ?';
+      params.push(channel);
+    }
+
+    sql += ' ORDER BY v.date_created DESC LIMIT 500';
+
+    const [rows] = await pool.execute(sql, params);
+
+    res.json({
+      success: true,
+      data: rows
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Fetch victims report data (visitors with conversions from suspicious sources)
+ * GET /api/analytics/victims
+ *
+ * Returns visitors who converted but came from suspicious IPs or sources
+ */
+export const getVictimsReport = async (req, res, next) => {
+  try {
+    const { startDate, endDate, channel, dkey } = req.query;
+    const userId = req.user?.id;
+    let tenantDkey = dkey;
+
+    if (!tenantDkey && userId) {
+      const userDkeys = await getUserDkeys(userId);
+      if (userDkeys.length > 0) {
+        tenantDkey = userDkeys[0].dkey;
+      }
+    }
+
+    if (!tenantDkey) {
+      return res.json({
+        success: true,
+        data: []
+      });
+    }
+
+    const tenantDb = `lazysauce_${tenantDkey}`;
+    const params = [];
+
+    // Victims are visitors who had revenue/conversions from suspicious IPs
+    let sql = `
+      SELECT
+        v.pkey as visitor_id,
+        v.date_created as visit_date,
+        a.date_created as conversion_date,
+        INET6_NTOA(v.ip) as ip_address,
+        v.channel,
+        v.subchannel,
+        ip.org as organization,
+        ip.shortcountry as country,
+        CAST(COALESCE(a.revenue, 0) AS DECIMAL(10,2)) as revenue,
+        a.hash,
+        CASE
+          WHEN ip.is_proxy = 1 THEN CONCAT('Proxy: ', COALESCE(ip.proxy_type, 'Unknown'))
+          WHEN ip.is_crawler = 1 THEN CONCAT('Crawler: ', COALESCE(ip.crawler_name, 'Unknown'))
+          WHEN ip.is_tor = 1 THEN 'Tor'
+          WHEN COALESCE(ip.threat_level, 0) > 0 THEN CONCAT('Threat Level: ', ip.threat_level)
+          ELSE 'Unknown Risk'
+        END as risk_type
+      FROM ${tenantDb}.action a
+      JOIN ${tenantDb}.visit v ON a.pkey = v.pkey
+      LEFT JOIN lazysauce.ip ip ON v.ip = ip.address
+      WHERE a.revenue > 0
+        AND (
+          ip.is_proxy = 1
+          OR ip.is_crawler = 1
+          OR ip.is_tor = 1
+          OR COALESCE(ip.threat_level, 0) > 0
+        )
+    `;
+
+    if (startDate) {
+      sql += ' AND DATE(a.date_created) >= ?';
+      params.push(startDate);
+    }
+
+    if (endDate) {
+      sql += ' AND DATE(a.date_created) <= ?';
+      params.push(endDate);
+    }
+
+    if (channel) {
+      sql += ' AND v.channel = ?';
+      params.push(channel);
+    }
+
+    sql += ' ORDER BY a.revenue DESC, a.date_created DESC LIMIT 500';
+
+    const [rows] = await pool.execute(sql, params);
+
+    res.json({
+      success: true,
+      data: rows
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Fetch analytics map data (geographic)
  * GET /api/analytics/map
  *
@@ -2605,6 +2783,8 @@ export default {
   saveDefaultOffer,
   getAnalytics,
   getAffiliateAnalytics,
+  getOffendersReport,
+  getVictimsReport,
   getAnalyticsMap,
   getIPActions,
   getChannels,
