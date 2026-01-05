@@ -2256,7 +2256,8 @@ export const getConversions = async (req, res, next) => {
     if (!tenantDkey) {
       return res.json({
         success: true,
-        data: []
+        data: [],
+        message: 'No domain access - please provide dkey parameter'
       });
     }
 
@@ -2299,7 +2300,12 @@ export const getConversions = async (req, res, next) => {
       data: rows
     });
   } catch (error) {
-    next(error);
+    console.error('getConversions error:', error.message, 'dkey:', req.query.dkey);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      details: 'Error fetching conversions data'
+    });
   }
 };
 
