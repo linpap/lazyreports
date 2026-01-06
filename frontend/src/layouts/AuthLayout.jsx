@@ -11,7 +11,7 @@ export default function AuthLayout({ children }) {
 
         <div className="relative z-10 flex flex-col justify-center items-center w-full p-12">
           <img
-            src="https://reporting.lazysauce.com/assets/images/logo.png"
+            src="/logo-white.png"
             alt="LazySauce"
             className="h-16 w-auto mb-8"
           />
@@ -58,7 +58,7 @@ export default function AuthLayout({ children }) {
           {/* Mobile logo */}
           <div className="lg:hidden text-center mb-8">
             <img
-              src="https://reporting.lazysauce.com/assets/images/logo.png"
+              src="/logo-white.png"
               alt="LazySauce"
               className="h-12 w-auto mx-auto mb-4"
             />
