@@ -83,6 +83,8 @@ export const useFilterStore = create((set, get) => ({
     const params = {
       startDate: state.startDate,
       endDate: state.endDate,
+      // Include user's timezone for proper date filtering
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     };
 
     // Include selected domain (dkey) for tenant database selection

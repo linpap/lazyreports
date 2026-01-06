@@ -362,8 +362,12 @@ export const getAnalytics = async (req, res, next) => {
       page_action,
       matchType = 'any',
       groupBy = 'date',
-      dkey // Allow explicit dkey override
+      dkey, // Allow explicit dkey override
+      timezone // User's timezone for proper date filtering
     } = req.query;
+
+    // Get timezone from query param or user profile
+    const userTimezone = timezone || req.user?.timezone || '+00:00';
 
     const userId = req.user?.id;
     let tenantDkey = dkey;
@@ -406,15 +410,17 @@ export const getAnalytics = async (req, res, next) => {
     `;
     const params = [];
 
-    // Date filters
+    // Date filters - Convert to UTC for proper timezone handling
     if (startDate) {
-      sql += ' AND DATE(v.date_created) >= ?';
-      params.push(startDate);
+      const startUtc = dayjs.tz(`${startDate} 00:00:00`, userTimezone).utc().format('YYYY-MM-DD HH:mm:ss');
+      sql += ' AND v.date_created >= ?';
+      params.push(startUtc);
     }
 
     if (endDate) {
-      sql += ' AND DATE(v.date_created) <= ?';
-      params.push(endDate);
+      const endUtc = dayjs.tz(`${endDate} 23:59:59`, userTimezone).utc().format('YYYY-MM-DD HH:mm:ss');
+      sql += ' AND v.date_created <= ?';
+      params.push(endUtc);
     }
 
     // Build filter conditions
@@ -2441,7 +2447,11 @@ export const runCustomSql = async (req, res, next) => {
  */
 export const getAverages = async (req, res, next) => {
   try {
-    const { startDate, endDate, dkey } = req.query;
+    const { startDate, endDate, dkey, timezone } = req.query;
+
+    // Get timezone from query param or user profile
+    const userTimezone = timezone || req.user?.timezone || '+00:00';
+
     const userId = req.user?.id;
     let tenantDkey = dkey;
 
@@ -2490,14 +2500,17 @@ export const getAverages = async (req, res, next) => {
     `;
     const params = [];
 
+    // Date filters - Convert to UTC for proper timezone handling
     if (startDate) {
-      sql += ' AND DATE(v.date_created) >= ?';
-      params.push(startDate);
+      const startUtc = dayjs.tz(`${startDate} 00:00:00`, userTimezone).utc().format('YYYY-MM-DD HH:mm:ss');
+      sql += ' AND v.date_created >= ?';
+      params.push(startUtc);
     }
 
     if (endDate) {
-      sql += ' AND DATE(v.date_created) <= ?';
-      params.push(endDate);
+      const endUtc = dayjs.tz(`${endDate} 23:59:59`, userTimezone).utc().format('YYYY-MM-DD HH:mm:ss');
+      sql += ' AND v.date_created <= ?';
+      params.push(endUtc);
     }
 
     sql += ' GROUP BY DATE(v.date_created)) as daily_stats';
