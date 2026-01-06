@@ -219,7 +219,7 @@ export default function MainLayout() {
               </div>
             ) : (
               <img
-                src="/logo-white.png"
+                src="https://reporting.lazysauce.com/assets/images/logo.png"
                 alt="LazySauce"
                 className="h-10 w-auto"
               />
