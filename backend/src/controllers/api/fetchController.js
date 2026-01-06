@@ -406,7 +406,7 @@ export const getAnalytics = async (req, res, next) => {
       FROM ${tenantDb}.visit v
       LEFT JOIN ${tenantDb}.action a ON v.pkey = a.pkey
       ${needsIpJoin ? 'LEFT JOIN lazysauce.ip ip ON v.ip = ip.address' : ''}
-      WHERE v.is_bot = 0
+      WHERE 1=1
     `;
     const params = [];
 
@@ -2496,7 +2496,7 @@ export const getAverages = async (req, res, next) => {
           COALESCE(SUM(a.revenue), 0) as daily_revenue
         FROM ${tenantDb}.visit v
         LEFT JOIN ${tenantDb}.action a ON v.pkey = a.pkey
-        WHERE v.is_bot = 0
+        WHERE 1=1
     `;
     const params = [];
 
