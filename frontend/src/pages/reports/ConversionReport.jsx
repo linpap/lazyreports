@@ -10,7 +10,7 @@ const columns = [
   { key: 'created_at', label: 'Date', render: (v) => v ? new Date(v).toLocaleString() : '-' },
   { key: 'offer_id', label: 'Offer ID' },
   { key: 'affiliate_id', label: 'Affiliate ID' },
-  { key: 'amount', label: 'Amount', render: (v) => `$${(v || 0).toLocaleString()}` },
+  { key: 'amount', label: 'Amount', render: (v) => `$${Number(v || 0).toLocaleString()}` },
   {
     key: 'status',
     label: 'Status',

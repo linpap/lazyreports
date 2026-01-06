@@ -11,7 +11,7 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 const columns = [
   { key: 'since_visit', label: 'Since Visit' },
   { key: 'visitor_id', label: 'Visitor ID' },
-  { key: 'total_actions', label: 'Actions', render: (v) => v?.toLocaleString() || '0' },
+  { key: 'total_actions', label: 'Actions', render: (v) => Number(v || 0).toLocaleString() },
   {
     key: 'revenue',
     label: 'Revenue',

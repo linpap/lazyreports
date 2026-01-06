@@ -8,14 +8,16 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 const columns = [
   { key: 'country', label: 'Country' },
   { key: 'country_code', label: 'Code' },
-  { key: 'total', label: 'Total', render: (v) => v?.toLocaleString() || '0' },
-  { key: 'clicks', label: 'Clicks', render: (v) => v?.toLocaleString() || '0' },
-  { key: 'conversions', label: 'Conversions', render: (v) => v?.toLocaleString() || '0' },
+  { key: 'total', label: 'Total', render: (v) => Number(v || 0).toLocaleString() },
+  { key: 'clicks', label: 'Clicks', render: (v) => Number(v || 0).toLocaleString() },
+  { key: 'conversions', label: 'Conversions', render: (v) => Number(v || 0).toLocaleString() },
   {
     key: 'conversion_rate',
     label: 'Conv. Rate',
     render: (_, row) => {
-      const rate = row.clicks > 0 ? ((row.conversions / row.clicks) * 100).toFixed(2) : 0;
+      const clicks = Number(row.clicks || 0);
+      const conversions = Number(row.conversions || 0);
+      const rate = clicks > 0 ? ((conversions / clicks) * 100).toFixed(2) : 0;
       return `${rate}%`;
     },
   },
