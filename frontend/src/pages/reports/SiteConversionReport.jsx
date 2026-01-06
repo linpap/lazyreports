@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Play, X, Download } from 'lucide-react';
+import { Download, X } from 'lucide-react';
 import { analyticsApi, domainsApi, dataApi } from '../../services/api';
 import { useFilterStore } from '../../store/filterStore';
 import DateRangePicker from '../../components/common/DateRangePicker';
@@ -9,23 +9,15 @@ import DataTable from '../../components/common/DataTable';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 
 const columns = [
-  { key: 'visitor_id', label: 'Visitor ID' },
-  {
-    key: 'date_created',
-    label: 'Visit Date',
-    render: (v) => v ? new Date(v).toLocaleString() : '',
-    sortable: true
-  },
-  { key: 'channel', label: 'Channel' },
-  { key: 'subchannel', label: 'Subchannel' },
-  { key: 'total_actions', label: 'Actions' },
-  {
-    key: 'revenue',
-    label: 'Revenue',
-    render: (v) => `$${parseFloat(v || 0).toFixed(2)}`,
-    sortable: true
-  },
-  { key: 'country', label: 'Country' },
+  { key: 'label', label: 'Landing Page + Variant', sortable: true },
+  { key: 'visitors', label: 'Visitors', render: (v) => Number(v || 0).toLocaleString(), sortable: true },
+  { key: 'engaged', label: 'Engaged', render: (v) => Number(v || 0).toLocaleString(), sortable: true },
+  { key: 'engage_rate', label: 'Engage %', render: (v) => `${parseFloat(v || 0).toFixed(2)}%`, sortable: true },
+  { key: 'sales', label: 'Sales', render: (v) => Number(v || 0).toLocaleString(), sortable: true },
+  { key: 'sales_rate', label: 'Conv %', render: (v) => `${parseFloat(v || 0).toFixed(2)}%`, sortable: true },
+  { key: 'revenue', label: 'Revenue', render: (v) => `$${parseFloat(v || 0).toFixed(2)}`, sortable: true },
+  { key: 'aov', label: 'AOV', render: (v) => `$${parseFloat(v || 0).toFixed(2)}`, sortable: true },
+  { key: 'epc', label: 'EPC', render: (v) => `$${parseFloat(v || 0).toFixed(4)}`, sortable: true },
 ];
 
 export default function SiteConversionReport() {
@@ -37,7 +29,6 @@ export default function SiteConversionReport() {
   const [selectedSubchannel, setSelectedSubchannel] = useState('');
   const [showChannelDropdown, setShowChannelDropdown] = useState(false);
   const [showSubchannelDropdown, setShowSubchannelDropdown] = useState(false);
-  const [uniqueFilter, setUniqueFilter] = useState('0');
   const [showFilters, setShowFilters] = useState(false);
 
   // Fetch user's available domains/offers
@@ -77,18 +68,18 @@ export default function SiteConversionReport() {
     }
   }, [domains, defaultOffer, selectedDkey, setSelectedDomain]);
 
-  // Build query params
+  // Build query params - use landing_page_variant groupBy for variants
   const getReportParams = () => {
     const params = getQueryParams();
-    params.type = 'sales';
+    params.groupBy = 'landing_page_variant';
     if (selectedChannel) params.channel = selectedChannel;
     if (selectedSubchannel) params.subchannel = selectedSubchannel;
     return params;
   };
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['site-conversion-report', selectedDkey, startDate, endDate, selectedChannel, selectedSubchannel, uniqueFilter],
-    queryFn: () => analyticsApi.getAnalyticsDetail(getReportParams()),
+    queryKey: ['site-conversion-report', selectedDkey, startDate, endDate, selectedChannel, selectedSubchannel],
+    queryFn: () => analyticsApi.getAnalyticsReport(getReportParams()),
     enabled: shouldFetch && !!selectedDkey,
   });
 
@@ -122,7 +113,7 @@ export default function SiteConversionReport() {
       {/* Header */}
       <div className="card p-6">
         <h1 className="text-xl font-bold text-secondary-900 mb-2">Site Conversion Report</h1>
-        <p className="text-secondary-600 mb-6">Run the custom site conversion report for SearchROI Offers</p>
+        <p className="text-secondary-600 mb-6">View conversion data grouped by Landing Page + Variant</p>
 
         {/* Filters */}
         <div className="space-y-4">
@@ -240,30 +231,10 @@ export default function SiteConversionReport() {
             </div>
           )}
 
-          {/* Date and Options */}
-          <div className="border border-secondary-200 rounded-lg p-4 space-y-4">
-            <div>
-              <label className="block text-sm font-semibold text-secondary-700 mb-2">Set Report Filters:</label>
-              <DateRangePicker />
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-secondary-700 mb-2">Report Options:</label>
-              <div className="flex flex-wrap gap-4">
-                <div>
-                  <label className="block text-xs text-secondary-500 mb-1">Unique:</label>
-                  <select
-                    value={uniqueFilter}
-                    onChange={(e) => setUniqueFilter(e.target.value)}
-                    className="px-3 py-2 border border-secondary-300 rounded-lg text-sm"
-                  >
-                    <option value="0">All Visitors</option>
-                    <option value="1">Unique</option>
-                    <option value="2">Non-Unique</option>
-                  </select>
-                </div>
-              </div>
-            </div>
+          {/* Date Filter */}
+          <div className="border border-secondary-200 rounded-lg p-4">
+            <label className="block text-sm font-semibold text-secondary-700 mb-2">Set Report Filters:</label>
+            <DateRangePicker />
           </div>
 
           {/* Run Report Button */}
@@ -284,7 +255,7 @@ export default function SiteConversionReport() {
         <div className="card">
           <div className="px-6 py-4 border-b border-secondary-100 bg-secondary-50 flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-semibold text-secondary-800">Site Conversion Report</h2>
+              <h2 className="text-xl font-semibold text-secondary-800">Site Conversion Report - By Variant</h2>
               <p className="text-sm text-secondary-500">as of {timestamp}</p>
             </div>
             {reportData.length > 0 && (
