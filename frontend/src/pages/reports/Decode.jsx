@@ -300,7 +300,7 @@ export default function Decode() {
                                     <td className="px-3 py-2 text-secondary-700">{action.variant}</td>
                                     <td className="px-3 py-2 text-secondary-700">{action.date}</td>
                                     <td className="px-3 py-2 text-secondary-700">{action.time}</td>
-                                    <td className="px-3 py-2 text-secondary-700">${action.revenue?.toFixed(2)}</td>
+                                    <td className="px-3 py-2 text-secondary-700">${Number(action.revenue || 0).toFixed(2)}</td>
                                     <td className="px-3 py-2 text-secondary-700">{action.pixels}</td>
                                     <td className="px-3 py-2 text-secondary-700">{action.details}</td>
                                   </tr>
