@@ -69,6 +69,7 @@ const navigation = [
       { name: 'UTM Setup', href: '/reports/utm-setup', icon: Settings },
     ],
   },
+  { name: 'UTM Setup', href: '/reports/utm-setup', icon: Settings },
   { name: 'Clients', href: '/clients', icon: Users },
   { name: 'Advertisers', href: '/advertisers', icon: Building2 },
   { name: 'IP Actions', href: '/ip-actions', icon: Shield },
