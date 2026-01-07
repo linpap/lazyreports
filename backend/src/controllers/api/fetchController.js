@@ -2880,6 +2880,61 @@ export const getCustomReports = async (req, res, next) => {
 };
 
 /**
+ * Fetch affiliate accounts
+ * GET /api/affiliate-accounts
+ *
+ * Returns list of affiliate accounts from affiliate_users table
+ */
+export const getAffiliateAccounts = async (req, res, next) => {
+  try {
+    // Query affiliate_users table for affiliate accounts
+    const [rows] = await pool.execute(
+      `SELECT
+        au.id,
+        au.username as user_name,
+        COALESCE(au.channel, '') as channel,
+        COALESCE(au.subchannel, '') as subchannel,
+        COALESCE(au.percentage, '100%') as percentage,
+        COALESCE(au.payout, '') as payout,
+        COALESCE(au.cpc, '') as cpc,
+        COALESCE(au.cpm, '') as cpm,
+        COALESCE(au.offer, '') as offer
+      FROM affiliate_users au
+      WHERE au.active = 1
+      ORDER BY au.username ASC
+      LIMIT 100`
+    );
+
+    const affiliates = rows.map(row => ({
+      id: row.id,
+      userName: row.user_name,
+      channel: row.channel,
+      subchannel: row.subchannel,
+      percentage: row.percentage,
+      payout: row.payout,
+      cpc: row.cpc,
+      cpm: row.cpm,
+      offer: row.offer
+    }));
+
+    res.json({
+      success: true,
+      data: affiliates
+    });
+  } catch (error) {
+    // If table doesn't exist, return empty data
+    if (error.code === 'ER_NO_SUCH_TABLE') {
+      return res.json({
+        success: true,
+        data: [],
+        message: 'Affiliate accounts table not configured'
+      });
+    }
+    next(error);
+  }
+};
+
+/**
  * Fetch company users
  * GET /api/company-users
  *
@@ -2954,5 +3009,6 @@ export default {
   updateAdvertiser,
   createAdvertiser,
   deleteAdvertiser,
+  getAffiliateAccounts,
   getCompanyUsers
 };

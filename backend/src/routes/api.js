@@ -54,6 +54,9 @@ router.get('/variants', fetchController.getVariants);
 // Company Users
 router.get('/company-users', fetchController.getCompanyUsers);
 
+// Affiliate Accounts
+router.get('/affiliate-accounts', fetchController.getAffiliateAccounts);
+
 // Clients/Advertisers
 router.get('/clients', fetchController.getClients);
 router.get('/clients/:id/report', fetchController.getClientReport);
