@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Play, Download } from 'lucide-react';
-import { analyticsApi, domainsApi } from '../../services/api';
+import { analyticsApi, domainsApi, dataApi } from '../../services/api';
 import { useFilterStore } from '../../store/filterStore';
 import DateRangePicker from '../../components/common/DateRangePicker';
 import OfferSelector from '../../components/common/OfferSelector';
@@ -25,6 +25,7 @@ export default function ChannelSubchannelReport() {
   const [uniqueFilter, setUniqueFilter] = useState('0');
   const [minVisitors, setMinVisitors] = useState('100');
   const [pageFilter, setPageFilter] = useState('1');
+  const [variantFilter, setVariantFilter] = useState('');
 
   // Fetch user's available domains/offers
   const { data: domainsData, isLoading: domainsLoading } = useQuery({
@@ -35,6 +36,16 @@ export default function ChannelSubchannelReport() {
 
   const domains = domainsData?.data?.data || [];
   const defaultOffer = domainsData?.data?.defaultOffer;
+
+  // Fetch variants for selected offer
+  const { data: variantsData } = useQuery({
+    queryKey: ['variants', selectedDkey],
+    queryFn: () => dataApi.getVariants({ dkey: selectedDkey }),
+    enabled: !!selectedDkey,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const variants = variantsData?.data?.data || [];
 
   // Auto-select default offer
   useEffect(() => {
@@ -51,11 +62,13 @@ export default function ChannelSubchannelReport() {
   const getReportParams = () => {
     const params = getQueryParams();
     params.groupBy = 'subchannel';
+    if (variantFilter) params.variant = variantFilter;
+    if (pageFilter) params.page = pageFilter;
     return params;
   };
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['channel-subchannel-report', selectedDkey, startDate, endDate, uniqueFilter, minVisitors],
+    queryKey: ['channel-subchannel-report', selectedDkey, startDate, endDate, uniqueFilter, minVisitors, variantFilter, pageFilter],
     queryFn: () => analyticsApi.getAnalyticsReport(getReportParams()),
     enabled: shouldFetch && !!selectedDkey,
   });
@@ -142,6 +155,19 @@ export default function ChannelSubchannelReport() {
                     placeholder="Default is 100"
                     className="px-3 py-2 border border-secondary-300 rounded-lg text-sm w-32"
                   />
+                </div>
+                <div>
+                  <label className="block text-xs text-secondary-500 mb-1">Variants:</label>
+                  <select
+                    value={variantFilter}
+                    onChange={(e) => setVariantFilter(e.target.value)}
+                    className="px-3 py-2 border border-secondary-300 rounded-lg text-sm"
+                  >
+                    <option value="">All Variants</option>
+                    {variants.map((v) => (
+                      <option key={v} value={v}>{v}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-xs text-secondary-500 mb-1">Page:</label>

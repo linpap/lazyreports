@@ -167,6 +167,8 @@ export const dataApi = {
 
   getChannels: (params) => api.get('/channels', { params }),
 
+  getVariants: (params) => api.get('/variants', { params }),
+
   getClients: (params) => api.get('/clients', { params }),
 
   getClientReport: (clientId, params) => api.get(`/clients/${clientId}/report`, { params }),

@@ -523,6 +523,8 @@ export const getAnalyticsReport = async (req, res, next) => {
       keyword,
       iporg,
       page_action,
+      variant,
+      page,
       matchType = 'any',
       groupBy = 'channel', // Default grouping field
       dkey,
@@ -540,7 +542,7 @@ export const getAnalyticsReport = async (req, res, next) => {
     const cacheKey = getCacheKey({
       type: 'report',
       startDate, endDate, channel, subchannel, country, keyword, iporg,
-      page_action, matchType, groupBy, dkey, includeBots, usePostDate, timezone
+      page_action, variant, page, matchType, groupBy, dkey, includeBots, usePostDate, timezone
     });
     const cachedResult = getCachedResult(cacheKey);
     if (cachedResult) {
@@ -716,6 +718,16 @@ export const getAnalyticsReport = async (req, res, next) => {
         filterConditions.push(`a.action IN (${placeholders})`);
         params.push(...actions);
       }
+    }
+
+    if (variant) {
+      filterConditions.push(`v.variant = ?`);
+      params.push(variant);
+    }
+
+    if (page) {
+      filterConditions.push(`a.name = ?`);
+      params.push(page);
     }
 
     // Apply filter conditions
@@ -1829,6 +1841,53 @@ export const getChannels = async (req, res, next) => {
 };
 
 /**
+ * Fetch distinct variants for an offer
+ * GET /api/variants
+ *
+ * Query params:
+ * - dkey: domain key (required)
+ *
+ * Returns list of distinct variants from visit table
+ */
+export const getVariants = async (req, res, next) => {
+  try {
+    const { dkey } = req.query;
+    const userId = req.user?.id;
+    let tenantDkey = dkey;
+
+    // If no explicit dkey, get user's first available domain
+    if (!tenantDkey && userId) {
+      const userDkeys = await getUserDkeys(userId);
+      if (userDkeys.length > 0) {
+        tenantDkey = userDkeys[0].dkey;
+      }
+    }
+
+    // If still no dkey, return empty data
+    if (!tenantDkey) {
+      return res.json({
+        success: true,
+        data: []
+      });
+    }
+
+    const tenantDb = `lazysauce_${tenantDkey}`;
+    const db = pool;
+
+    const [rows] = await db.execute(
+      `SELECT DISTINCT variant FROM ${tenantDb}.visit WHERE variant IS NOT NULL ORDER BY variant LIMIT 100`
+    );
+
+    res.json({
+      success: true,
+      data: rows.map(r => r.variant)
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Fetch clients/advertisers
  * GET /api/clients
  *
@@ -2831,6 +2890,7 @@ export default {
   getAnalyticsMap,
   getIPActions,
   getChannels,
+  getVariants,
   getClients,
   getClientReport,
   getConversions,
