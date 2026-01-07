@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { Save, Loader2, Calendar } from 'lucide-react';
+import { Save, Loader2, Calendar, Copy, ExternalLink } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { authApi } from '../services/api';
 
@@ -193,9 +193,76 @@ function ProfileSettingsTab() {
 }
 
 function APIControlTab() {
+  const { user } = useAuthStore();
+
+  // Mock API key data - in production this would come from an API
+  const apiKeyData = {
+    apiKey: user?.apiKey || 'gbA9Nhff',
+    timeInterval: 1,
+    allowedRequests: 24,
+    rowsServed: 344827,
+    totalRequests: 714,
+    lastRequestTime: '2017-06-14 08:07:49',
+  };
+
+  const handleCopyApiKey = () => {
+    navigator.clipboard.writeText(apiKeyData.apiKey);
+    toast.success('API Key copied to clipboard');
+  };
+
   return (
-    <div className="text-secondary-500 text-center py-8">
-      API Control settings coming soon...
+    <div className="space-y-6">
+      {/* API Key Table */}
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="bg-secondary-600 text-white">
+              <th className="px-4 py-3 text-left text-sm font-medium">ApiKey</th>
+              <th className="px-4 py-3 text-left text-sm font-medium">Time Interval</th>
+              <th className="px-4 py-3 text-left text-sm font-medium">Allowed Requests</th>
+              <th className="px-4 py-3 text-left text-sm font-medium">Rows Served</th>
+              <th className="px-4 py-3 text-left text-sm font-medium">Total Requests</th>
+              <th className="px-4 py-3 text-left text-sm font-medium">Last Request Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr className="border-b border-secondary-200">
+              <td className="px-4 py-3 text-sm text-secondary-700 font-mono">{apiKeyData.apiKey}</td>
+              <td className="px-4 py-3 text-sm text-secondary-700">{apiKeyData.timeInterval}</td>
+              <td className="px-4 py-3 text-sm text-secondary-700">{apiKeyData.allowedRequests}</td>
+              <td className="px-4 py-3 text-sm text-secondary-700">{apiKeyData.rowsServed.toLocaleString()}</td>
+              <td className="px-4 py-3 text-sm text-secondary-700">{apiKeyData.totalRequests.toLocaleString()}</td>
+              <td className="px-4 py-3 text-sm text-secondary-700">{apiKeyData.lastRequestTime}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      {/* Copy Button */}
+      <div>
+        <button
+          onClick={handleCopyApiKey}
+          className="btn btn-primary flex items-center gap-2"
+        >
+          <Copy className="w-4 h-4" />
+          Copy
+        </button>
+      </div>
+
+      {/* Documentation Link */}
+      <div className="text-center pt-4">
+        <p className="text-secondary-600">
+          Documentation for the api is located{' '}
+          <a
+            href="https://reporting.lazysauce.com/api/docs"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary-500 hover:text-primary-600 font-medium"
+          >
+            HERE
+          </a>
+        </p>
+      </div>
     </div>
   );
 }
