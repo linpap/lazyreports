@@ -189,6 +189,9 @@ export const dataApi = {
 
   runCustomSql: (query) => api.post('/custom-sql', { query }),
 
+  // Decode visitor/action by pkey or hash
+  decodeVisitor: (data) => api.post('/decode', data),
+
   // Custom reports from database (categorized: searchlight, dejavu, client)
   getCustomReportsFromDB: () => api.get('/custom-reports'),
 };

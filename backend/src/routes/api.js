@@ -86,6 +86,9 @@ router.get('/offers', fetchController.getOffers);
 // Raw words / Keywords
 router.get('/rawwords', fetchController.getRawwords);
 
+// Decode visitor/action by pkey or hash
+router.post('/decode', fetchController.decodeVisitor);
+
 // Custom Reports (from database)
 router.get('/custom-reports', fetchController.getCustomReports);
 

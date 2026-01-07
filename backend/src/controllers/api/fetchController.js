@@ -2983,6 +2983,291 @@ export const getCompanyUsers = async (req, res, next) => {
   }
 };
 
+/**
+ * Decode visitor/action by pkey or hash
+ * POST /api/decode
+ *
+ * Takes pkeys and/or hashes and returns detailed visitor info, device details, actions, and parameters
+ */
+export const decodeVisitor = async (req, res, next) => {
+  try {
+    const { pkeys, hashes, dkey } = req.body;
+    const userId = req.user?.id;
+    const userTimezone = req.query.timezone || 'America/Los_Angeles';
+
+    // Determine which database to use
+    let tenantDkey = dkey;
+
+    // If hash provided, extract dkey from it (format: {dkey}_{base64}{suffix})
+    if (!tenantDkey && hashes) {
+      const hashParts = hashes.trim().split('_');
+      if (hashParts.length > 1) {
+        tenantDkey = hashParts[0];
+      }
+    }
+
+    // Fall back to user's first domain
+    if (!tenantDkey && userId) {
+      const userDkeys = await getUserDkeys(userId);
+      if (userDkeys.length > 0) {
+        tenantDkey = userDkeys[0].dkey;
+      }
+    }
+
+    if (!tenantDkey) {
+      return res.status(400).json({
+        success: false,
+        error: { message: 'Could not determine database. Please provide dkey or a valid hash.' }
+      });
+    }
+
+    const tenantDb = `lazysauce_${tenantDkey}`;
+
+    // Parse input - support comma, semicolon, or newline separated values
+    const parseInput = (input) => {
+      if (!input) return [];
+      const trimmed = input.trim();
+      if (trimmed.includes('\n')) return trimmed.split('\n').map(s => s.trim()).filter(Boolean);
+      if (trimmed.includes(';')) return trimmed.split(';').map(s => s.trim()).filter(Boolean);
+      if (trimmed.includes(',')) return trimmed.split(',').map(s => s.trim()).filter(Boolean);
+      return [trimmed];
+    };
+
+    const pkeyList = parseInput(pkeys);
+    const hashList = parseInput(hashes);
+
+    // Decode hashes to get actual pkeys
+    // Format: {dkey}_{base64_pkey}{3-char-suffix}
+    const decodedHashes = [];
+    const hashMapping = {}; // Maps decoded pkey to original hash
+
+    for (const hash of hashList) {
+      const parts = hash.split('_');
+      if (parts.length > 1) {
+        const encodedPart = parts[1];
+        // Remove last 3 characters (suffix) and base64 decode
+        if (encodedPart.length > 3) {
+          try {
+            const base64Part = encodedPart.slice(0, -3);
+            const decodedPkey = Buffer.from(base64Part, 'base64').toString('utf8');
+            decodedHashes.push(decodedPkey);
+            hashMapping[decodedPkey] = hash;
+          } catch (e) {
+            // Try without removing suffix
+            try {
+              const decodedPkey = Buffer.from(encodedPart, 'base64').toString('utf8');
+              decodedHashes.push(decodedPkey);
+              hashMapping[decodedPkey] = hash;
+            } catch (e2) {
+              // Invalid base64
+            }
+          }
+        }
+      } else {
+        // Plain hash without dkey prefix
+        decodedHashes.push(hash);
+        hashMapping[hash] = hash;
+      }
+    }
+
+    // Also decode pkeys if they look encoded
+    const decodedPkeys = [];
+    for (const pkey of pkeyList) {
+      if (pkey.includes('=')) {
+        // Looks like base64 encoded
+        try {
+          const decoded = Buffer.from(pkey.slice(0, -3), 'base64').toString('utf8');
+          decodedPkeys.push(decoded);
+        } catch (e) {
+          decodedPkeys.push(pkey);
+        }
+      } else {
+        decodedPkeys.push(pkey);
+      }
+    }
+
+    // Build WHERE clause
+    const allPkeys = [...decodedPkeys, ...decodedHashes];
+    if (allPkeys.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: { message: 'Please provide at least one pkey or hash to decode.' }
+      });
+    }
+
+    const placeholders = allPkeys.map(() => '?').join(', ');
+
+    // Main query to get visitor details
+    const sql = `
+      SELECT DISTINCT
+        v.pkey,
+        v.target as lander,
+        DATE_FORMAT(v.date_created, '%Y-%m-%d') as hitdate,
+        TIME(v.date_created) as hittime,
+        DATE_FORMAT(CONVERT_TZ(v.date_created, '+00:00', @@session.time_zone), '%Y-%m-%d') as local_date,
+        TIME(CONVERT_TZ(v.date_created, '+00:00', @@session.time_zone)) as local_time,
+        INET6_NTOA(v.ip) as ip,
+        v.is_bot as visitbot,
+        v.variant as hitvariant,
+        v.channel,
+        v.subchannel,
+        v.target as keyword,
+        ip.city,
+        ip.state,
+        ip.country,
+        ip.org,
+        ip.isp,
+        ip.netspeed,
+        ip.is_bot as ipbot,
+        d.os,
+        d.os_version,
+        d.browser,
+        d.browser_version,
+        d.useragent,
+        d.is_smartphone,
+        d.is_mobile,
+        d.is_tablet,
+        d.is_android,
+        d.is_ios,
+        d.brand,
+        d.name as device_name,
+        d.model,
+        d.width,
+        d.height,
+        d.is_bot as devicebot
+      FROM ${tenantDb}.visit v
+      LEFT JOIN lazysauce.ip ip ON v.ip = ip.address
+      LEFT JOIN lazysauce.device d ON v.did = d.did
+      WHERE v.pkey IN (${placeholders})
+    `;
+
+    const [visitors] = await pool.execute(sql, allPkeys);
+
+    // Get actions for each visitor
+    const results = [];
+    for (const visitor of visitors) {
+      // Get actions
+      const [actions] = await pool.execute(`
+        SELECT
+          a.hash,
+          a.name as page,
+          a.variant as actionvariant,
+          DATE_FORMAT(a.date_created, '%Y-%m-%d') as creatdate,
+          TIME(a.date_created) as creattime,
+          DATE_FORMAT(a.date_revenue, '%Y-%m-%d') as actiondate,
+          TIME(a.date_revenue) as actiontime,
+          a.revenue,
+          a.pixel,
+          a.logstring
+        FROM ${tenantDb}.action a
+        WHERE a.pkey = ?
+        ORDER BY a.date_created
+      `, [visitor.pkey]);
+
+      // Get parameters
+      const [parameters] = await pool.execute(`
+        SELECT name, value
+        FROM ${tenantDb}.parameters
+        WHERE pkey = ?
+      `, [visitor.pkey]);
+
+      // Format parameters as key-value object
+      const paramsObj = {};
+      for (const p of parameters) {
+        paramsObj[p.name] = p.value;
+      }
+
+      // Determine device type
+      let deviceType = 'Desktop';
+      if (visitor.is_smartphone) {
+        deviceType = visitor.is_ios ? 'iPhone' : visitor.is_android ? 'Android Phone' : 'Smartphone';
+      } else if (visitor.is_tablet) {
+        deviceType = visitor.is_ios ? 'iPad' : visitor.is_android ? 'Android Tablet' : 'Tablet';
+      } else if (visitor.is_mobile) {
+        deviceType = 'Mobile';
+      }
+
+      // Determine bot status
+      let botStatus = 'Not a bot';
+      if (visitor.visitbot === 1) botStatus = 'Bot because of IP';
+      else if (visitor.visitbot === 2) botStatus = 'Bot because of ORG';
+      else if (visitor.visitbot === 3) botStatus = 'Bot because of ISP';
+      else if (visitor.visitbot === 4) botStatus = 'Bot because of useragent';
+
+      results.push({
+        pkey: visitor.pkey,
+        originalHash: hashMapping[visitor.pkey] || null,
+        visitorDetails: {
+          lander: visitor.lander,
+          variant: visitor.hitvariant,
+          date: visitor.hitdate,
+          time: visitor.hittime,
+          localDate: visitor.local_date,
+          localTime: visitor.local_time,
+          ip: visitor.ip,
+          isp: visitor.isp,
+          organization: visitor.org,
+          netspeed: visitor.netspeed,
+          country: visitor.country,
+          state: visitor.state,
+          city: visitor.city,
+          channel: visitor.channel,
+          subchannel: visitor.subchannel,
+          keyword: visitor.keyword,
+          rawKeyword: paramsObj.rawkw || '',
+          sourceDomain: paramsObj.srcdom || '',
+          referer: paramsObj.referer || '',
+          knownBot: botStatus,
+          timezone: paramsObj.lazy_timezone || ''
+        },
+        deviceDetails: {
+          userAgent: visitor.useragent,
+          deviceType,
+          os: visitor.os,
+          osVersion: visitor.os_version,
+          browser: visitor.browser,
+          browserVersion: visitor.browser_version,
+          brand: visitor.brand,
+          name: visitor.device_name,
+          model: visitor.model,
+          deviceSize: visitor.width && visitor.height ? `${visitor.width} X ${visitor.height}` : '',
+          language: paramsObj.lazy_languages || '',
+          deviceScreen: paramsObj.lazy_screen || ''
+        },
+        actions: actions.map(a => ({
+          id: a.hash,
+          hash: hashMapping[visitor.pkey] || a.hash,
+          page: a.page,
+          variant: a.actionvariant,
+          date: a.pixel > 0 ? a.actiondate : a.creatdate,
+          time: a.pixel > 0 ? a.actiontime : a.creattime,
+          revenue: a.revenue || 0,
+          pixels: a.pixel || 0,
+          details: a.logstring || ''
+        })),
+        parameters: parameters.map(p => ({
+          definedAt: 'Visitor',
+          name: p.name,
+          value: p.value
+        }))
+      });
+    }
+
+    res.json({
+      success: true,
+      data: results,
+      query: {
+        pkeys: pkeyList,
+        hashes: hashList,
+        decodedPkeys: allPkeys,
+        database: tenantDb
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export default {
   getUserDomains,
   getDefaultOffer,
@@ -3010,5 +3295,6 @@ export default {
   createAdvertiser,
   deleteAdvertiser,
   getAffiliateAccounts,
-  getCompanyUsers
+  getCompanyUsers,
+  decodeVisitor
 };
