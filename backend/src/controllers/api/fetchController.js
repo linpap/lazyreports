@@ -3086,66 +3086,140 @@ export const decodeVisitor = async (req, res, next) => {
       }
     }
 
-    // Build WHERE clause
-    const allPkeys = [...decodedPkeys, ...decodedHashes];
-    if (allPkeys.length === 0) {
+    // Build queries based on input type
+    if (decodedPkeys.length === 0 && decodedHashes.length === 0) {
       return res.status(400).json({
         success: false,
         error: { message: 'Please provide at least one pkey or hash to decode.' }
       });
     }
 
-    const placeholders = allPkeys.map(() => '?').join(', ');
+    let visitors = [];
 
-    // Main query to get visitor details
-    const sql = `
-      SELECT DISTINCT
-        v.pkey,
-        v.target as lander,
-        DATE_FORMAT(v.date_created, '%Y-%m-%d') as hitdate,
-        TIME(v.date_created) as hittime,
-        DATE_FORMAT(CONVERT_TZ(v.date_created, '+00:00', @@session.time_zone), '%Y-%m-%d') as local_date,
-        TIME(CONVERT_TZ(v.date_created, '+00:00', @@session.time_zone)) as local_time,
-        INET6_NTOA(v.ip) as ip,
-        v.is_bot as visitbot,
-        v.variant as hitvariant,
-        v.channel,
-        v.subchannel,
-        v.target as keyword,
-        ip.city,
-        ip.state,
-        ip.country,
-        ip.org,
-        ip.isp,
-        ip.netspeed,
-        ip.is_bot as ipbot,
-        d.os,
-        d.os_version,
-        d.browser,
-        d.browser_version,
-        d.useragent,
-        d.is_smartphone,
-        d.is_mobile,
-        d.is_tablet,
-        d.is_android,
-        d.is_ios,
-        d.brand,
-        d.name as device_name,
-        d.model,
-        d.width,
-        d.height,
-        d.is_bot as devicebot
-      FROM ${tenantDb}.visit v
-      LEFT JOIN lazysauce.ip ip ON v.ip = ip.address
-      LEFT JOIN lazysauce.device d ON v.did = d.did
-      WHERE v.pkey IN (${placeholders})
-    `;
+    // Query by pkey (direct visitor lookup)
+    if (decodedPkeys.length > 0) {
+      const pkeyPlaceholders = decodedPkeys.map(() => '?').join(', ');
+      const pkeySql = `
+        SELECT DISTINCT
+          v.pkey,
+          v.target as lander,
+          DATE_FORMAT(v.date_created, '%Y-%m-%d') as hitdate,
+          TIME(v.date_created) as hittime,
+          DATE_FORMAT(CONVERT_TZ(v.date_created, '+00:00', @@session.time_zone), '%Y-%m-%d') as local_date,
+          TIME(CONVERT_TZ(v.date_created, '+00:00', @@session.time_zone)) as local_time,
+          INET6_NTOA(v.ip) as ip,
+          v.is_bot as visitbot,
+          v.variant as hitvariant,
+          v.channel,
+          v.subchannel,
+          v.target as keyword,
+          ip.city,
+          ip.state,
+          ip.country,
+          ip.org,
+          ip.isp,
+          ip.netspeed,
+          ip.is_bot as ipbot,
+          d.os,
+          d.os_version,
+          d.browser,
+          d.browser_version,
+          d.useragent,
+          d.is_smartphone,
+          d.is_mobile,
+          d.is_tablet,
+          d.is_android,
+          d.is_ios,
+          d.brand,
+          d.name as device_name,
+          d.model,
+          d.width,
+          d.height,
+          d.is_bot as devicebot
+        FROM ${tenantDb}.visit v
+        LEFT JOIN lazysauce.ip ip ON v.ip = ip.address
+        LEFT JOIN lazysauce.device d ON v.did = d.did
+        WHERE v.pkey IN (${pkeyPlaceholders})
+      `;
+      const [pkeyResults] = await pool.execute(pkeySql, decodedPkeys);
+      visitors = [...visitors, ...pkeyResults];
+    }
 
-    const [visitors] = await pool.execute(sql, allPkeys);
+    // Query by hash (action lookup, then get visitor)
+    // The decoded hash value is the action.hash, not the visit.pkey
+    if (decodedHashes.length > 0) {
+      const hashPlaceholders = decodedHashes.map(() => '?').join(', ');
+      const hashSql = `
+        SELECT DISTINCT
+          v.pkey,
+          v.target as lander,
+          DATE_FORMAT(v.date_created, '%Y-%m-%d') as hitdate,
+          TIME(v.date_created) as hittime,
+          DATE_FORMAT(CONVERT_TZ(v.date_created, '+00:00', @@session.time_zone), '%Y-%m-%d') as local_date,
+          TIME(CONVERT_TZ(v.date_created, '+00:00', @@session.time_zone)) as local_time,
+          INET6_NTOA(v.ip) as ip,
+          v.is_bot as visitbot,
+          v.variant as hitvariant,
+          v.channel,
+          v.subchannel,
+          v.target as keyword,
+          ip.city,
+          ip.state,
+          ip.country,
+          ip.org,
+          ip.isp,
+          ip.netspeed,
+          ip.is_bot as ipbot,
+          d.os,
+          d.os_version,
+          d.browser,
+          d.browser_version,
+          d.useragent,
+          d.is_smartphone,
+          d.is_mobile,
+          d.is_tablet,
+          d.is_android,
+          d.is_ios,
+          d.brand,
+          d.name as device_name,
+          d.model,
+          d.width,
+          d.height,
+          d.is_bot as devicebot
+        FROM ${tenantDb}.visit v
+        INNER JOIN ${tenantDb}.action a ON v.pkey = a.pkey
+        LEFT JOIN lazysauce.ip ip ON v.ip = ip.address
+        LEFT JOIN lazysauce.device d ON v.did = d.did
+        WHERE a.hash IN (${hashPlaceholders})
+      `;
+      const [hashResults] = await pool.execute(hashSql, decodedHashes);
+
+      // Map the decoded hashes to their original hash for display
+      for (const result of hashResults) {
+        // Find which decoded hash matched this result
+        for (const decodedHash of decodedHashes) {
+          if (hashMapping[decodedHash]) {
+            result.matchedHash = hashMapping[decodedHash];
+            break;
+          }
+        }
+      }
+      visitors = [...visitors, ...hashResults];
+    }
+
+    // Remove duplicates by pkey
+    const uniqueVisitors = [];
+    const seenPkeys = new Set();
+    for (const v of visitors) {
+      if (!seenPkeys.has(v.pkey)) {
+        seenPkeys.add(v.pkey);
+        uniqueVisitors.push(v);
+      }
+    }
 
     // Get actions for each visitor
     const results = [];
-    for (const visitor of visitors) {
+    for (const visitor of uniqueVisitors) {
       // Get actions
       const [actions] = await pool.execute(`
         SELECT
@@ -3196,7 +3270,7 @@ export const decodeVisitor = async (req, res, next) => {
 
       results.push({
         pkey: visitor.pkey,
-        originalHash: hashMapping[visitor.pkey] || null,
+        originalHash: visitor.matchedHash || hashMapping[visitor.pkey] || null,
         visitorDetails: {
           lander: visitor.lander,
           variant: visitor.hitvariant,
