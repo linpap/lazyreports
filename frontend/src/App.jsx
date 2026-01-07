@@ -18,6 +18,7 @@ import CustomSQL from './pages/reports/CustomSQL';
 import Decode from './pages/reports/Decode';
 import SearchEngineMarketing from './pages/reports/SearchEngineMarketing';
 import ImportSales from './pages/reports/ImportSales';
+import ClearIP from './pages/reports/ClearIP';
 import HashReport from './pages/reports/HashReport';
 import AveragesReport from './pages/reports/AveragesReport';
 import AdvertiserReport from './pages/reports/AdvertiserReport';
@@ -97,6 +98,7 @@ function App() {
           <Route path="decode" element={<Decode />} />
           <Route path="sem" element={<SearchEngineMarketing />} />
           <Route path="import-sales" element={<ImportSales />} />
+          <Route path="clear-ip" element={<ClearIP />} />
           <Route path="hash" element={<HashReport />} />
           <Route path="details" element={<DetailsReport />} />
           <Route path="offenders" element={<OffendersReport />} />

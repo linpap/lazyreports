@@ -163,7 +163,7 @@ export const dataApi = {
 
   getIPActions: (params) => api.get('/ip-actions', { params }),
 
-  clearIP: (ip) => api.delete(`/ip-actions/${encodeURIComponent(ip)}`),
+  clearIP: (data) => api.post('/clear-ip', data),
 
   getChannels: (params) => api.get('/channels', { params }),
 

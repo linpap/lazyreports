@@ -164,7 +164,10 @@ router.post(
 // DELETE ROUTES
 // =====================
 
-// Clear IP
+// Clear IP - deletes visits and actions for an IP
+router.post('/clear-ip', deleteController.clearIP);
+
+// Legacy route (kept for backwards compatibility)
 router.delete('/ip-actions/:ip', deleteController.clearIP);
 
 export default router;
