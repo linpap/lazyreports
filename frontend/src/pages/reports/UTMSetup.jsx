@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Loader2, Settings } from 'lucide-react';
+import { Loader2, Settings, X, GripVertical } from 'lucide-react';
 import { dataApi, domainsApi } from '../../services/api';
 import toast from 'react-hot-toast';
 
@@ -14,7 +14,9 @@ const PRIORITY_OPTIONS = [
 export default function UTMSetup() {
   const [selectedOffer, setSelectedOffer] = useState('');
   const [priority, setPriority] = useState('');
-  const [value, setValue] = useState('');
+  const [inputValue, setInputValue] = useState('');
+  const [values, setValues] = useState([]);
+  const [draggedIndex, setDraggedIndex] = useState(null);
 
   // Fetch user's available domains
   const { data: domainsData } = useQuery({
@@ -30,24 +32,34 @@ export default function UTMSetup() {
     queryKey: ['utm-setup', selectedOffer],
     queryFn: () => dataApi.getUtmSetup(selectedOffer),
     enabled: !!selectedOffer,
-    onSuccess: (response) => {
-      // Pre-populate the value based on priority type
-      if (priority && response?.data?.data) {
-        const data = response.data.data;
-        switch (priority) {
-          case 'Channel':
-            setValue(data.channelPriority || '');
-            break;
-          case 'Subchannel':
-            setValue(data.subchannelPriority || '');
-            break;
-          case 'Keyword':
-            setValue(data.keywordPriority || '');
-            break;
-        }
-      }
-    }
   });
+
+  // Update values when UTM data loads or priority changes
+  useEffect(() => {
+    if (utmData?.data?.data && priority) {
+      const data = utmData.data.data;
+      let currentValue = '';
+      switch (priority) {
+        case 'Channel':
+          currentValue = data.channelPriority || '';
+          break;
+        case 'Subchannel':
+          currentValue = data.subchannelPriority || '';
+          break;
+        case 'Keyword':
+          currentValue = data.keywordPriority || '';
+          break;
+      }
+      // Split by comma to get array of values
+      if (currentValue) {
+        setValues(currentValue.split(',').map(v => v.trim()).filter(Boolean));
+      } else {
+        setValues([]);
+      }
+    } else {
+      setValues([]);
+    }
+  }, [utmData, priority]);
 
   // Save UTM mutation
   const saveMutation = useMutation({
@@ -60,27 +72,58 @@ export default function UTMSetup() {
     },
   });
 
-  // Handle priority change - populate value from existing settings
+  // Handle priority change
   const handlePriorityChange = (newPriority) => {
     setPriority(newPriority);
+    setInputValue('');
+  };
 
-    if (utmData?.data?.data && newPriority) {
-      const data = utmData.data.data;
-      switch (newPriority) {
-        case 'Channel':
-          setValue(data.channelPriority || '');
-          break;
-        case 'Subchannel':
-          setValue(data.subchannelPriority || '');
-          break;
-        case 'Keyword':
-          setValue(data.keywordPriority || '');
-          break;
-        default:
-          setValue('');
-      }
-    } else {
-      setValue('');
+  // Add value to list
+  const handleAddValue = () => {
+    if (!inputValue.trim()) return;
+
+    if (values.includes(inputValue.trim())) {
+      toast.error('Value already exists');
+      return;
+    }
+
+    setValues([...values, inputValue.trim()]);
+    setInputValue('');
+  };
+
+  // Remove value from list
+  const handleRemoveValue = (index) => {
+    setValues(values.filter((_, i) => i !== index));
+  };
+
+  // Handle drag start
+  const handleDragStart = (index) => {
+    setDraggedIndex(index);
+  };
+
+  // Handle drag over
+  const handleDragOver = (e, index) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === index) return;
+
+    const newValues = [...values];
+    const draggedItem = newValues[draggedIndex];
+    newValues.splice(draggedIndex, 1);
+    newValues.splice(index, 0, draggedItem);
+    setValues(newValues);
+    setDraggedIndex(index);
+  };
+
+  // Handle drag end
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+  };
+
+  // Handle key press in input
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddValue();
     }
   };
 
@@ -96,6 +139,9 @@ export default function UTMSetup() {
       toast.error('Please select a priority type');
       return;
     }
+
+    // Join values with comma
+    const value = values.join(',');
 
     saveMutation.mutate({
       offer: selectedOffer,
@@ -160,19 +206,59 @@ export default function UTMSetup() {
 
           {/* Value Input - shown when priority is selected */}
           {priority && (
-            <div>
-              <label className="label">{priority} Value</label>
-              <input
-                type="text"
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-                placeholder={`Enter ${priority.toLowerCase()} priority value...`}
-                className="input w-full"
-              />
-              {isLoadingUtm && (
-                <p className="text-sm text-secondary-500 mt-1">Loading current value...</p>
+            <>
+              <div>
+                <label className="label">Enter priority:</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    placeholder=""
+                    className="input flex-1"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddValue}
+                    className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"
+                  >
+                    Ok
+                  </button>
+                </div>
+                {isLoadingUtm && (
+                  <p className="text-sm text-secondary-500 mt-1">Loading current values...</p>
+                )}
+              </div>
+
+              {/* Values List */}
+              {values.length > 0 && (
+                <div className="space-y-2">
+                  {values.map((value, index) => (
+                    <div
+                      key={index}
+                      draggable
+                      onDragStart={() => handleDragStart(index)}
+                      onDragOver={(e) => handleDragOver(e, index)}
+                      onDragEnd={handleDragEnd}
+                      className={`flex items-center gap-2 p-2 border border-secondary-200 rounded-lg bg-white cursor-move ${
+                        draggedIndex === index ? 'opacity-50' : ''
+                      }`}
+                    >
+                      <GripVertical className="w-4 h-4 text-secondary-400 flex-shrink-0" />
+                      <span className="flex-1 text-secondary-700">{value}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveValue(index)}
+                        className="p-1 text-secondary-400 hover:text-red-500 transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
               )}
-            </div>
+            </>
           )}
 
           {/* Submit Button */}
@@ -192,8 +278,8 @@ export default function UTMSetup() {
 
         {/* Info Text */}
         <div className="mt-4 p-3 bg-blue-50 rounded-lg text-sm text-blue-700">
-          <strong>Note:</strong> This sets the priority for how UTM parameters are processed for the selected offer.
-          Choose Channel, Subchannel, or Keyword to configure their priority value.
+          <strong>Note:</strong> Add multiple priority values by entering each value and clicking "Ok".
+          Drag to reorder. Values are saved as a comma-separated list.
         </div>
       </div>
     </div>
