@@ -31,6 +31,7 @@ import MadrivoReport from './pages/reports/MadrivoReport';
 import ClientManagement from './pages/ClientManagement';
 import IPActions from './pages/IPActions';
 import Settings from './pages/Settings';
+import Accounts from './pages/Accounts';
 import NotFound from './pages/NotFound';
 
 // Protected Route wrapper
@@ -110,8 +111,9 @@ function App() {
         <Route path="advertisers" element={<AdvertiserReport />} />
         <Route path="ip-actions" element={<IPActions />} />
 
-        {/* Settings */}
+        {/* Settings & Accounts */}
         <Route path="settings" element={<Settings />} />
+        <Route path="accounts" element={<Accounts />} />
       </Route>
 
       {/* 404 */}
