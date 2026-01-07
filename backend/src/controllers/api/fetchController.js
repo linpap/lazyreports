@@ -3333,7 +3333,7 @@ export const decodeVisitor = async (req, res, next) => {
       query: {
         pkeys: pkeyList,
         hashes: hashList,
-        decodedPkeys: allPkeys,
+        decodedPkeys: [...decodedPkeys, ...decodedHashes],
         database: tenantDb
       }
     });
