@@ -4,7 +4,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { Save, Loader2, Calendar, Copy, ExternalLink } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
-import { authApi, domainsApi } from '../services/api';
+import { authApi, domainsApi, dataApi } from '../services/api';
 
 const tabs = [
   { id: 'profile', label: 'Profile Settings' },
@@ -375,22 +375,20 @@ function CompanyOffersTab() {
 function CompanyUsersTab() {
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Mock company users data - in production this would come from an API
-  const companyUsers = [
-    { id: 1, name: 'Michael Cech', email: 'michael.cech@searchlightsolutions.com', permissions: 'Owner' },
-    { id: 2, name: 'Ian Ho', email: 'ian.ho@rebootmedia.net', permissions: 'Owner' },
-    { id: 3, name: 'Ankit Agarwal', email: 'ankit@theleadgroup.com', permissions: 'Admin' },
-    { id: 4, name: 'Raquel Fabrizio', email: 'raquel@theleadgroup.com', permissions: 'User' },
-    { id: 5, name: 'Angel Hernandez', email: 'angel@theleadgroup.com', permissions: 'User' },
-    { id: 6, name: 'Arsh user', email: 'linpap@gmail.com', permissions: 'User' },
-    { id: 7, name: 'Michael David', email: 'michaeldavid@theleadgroup.com', permissions: 'Admin' },
-  ];
+  // Fetch company users from API
+  const { data: usersData, isLoading } = useQuery({
+    queryKey: ['company-users'],
+    queryFn: () => dataApi.getCompanyUsers(),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const companyUsers = usersData?.data?.data || [];
 
   // Filter users by search term (case insensitive as per screenshot)
   const filteredUsers = searchTerm
     ? companyUsers.filter(u =>
-        u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        u.email.toLowerCase().includes(searchTerm.toLowerCase())
+        u.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        u.email?.toLowerCase().includes(searchTerm.toLowerCase())
       )
     : companyUsers;
 
@@ -431,51 +429,57 @@ function CompanyUsersTab() {
       </div>
 
       {/* Users Table */}
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="bg-secondary-600 text-white">
-              <th className="px-4 py-3 text-left text-sm font-medium">User Name</th>
-              <th className="px-4 py-3 text-left text-sm font-medium">Email</th>
-              <th className="px-4 py-3 text-left text-sm font-medium">Permissions</th>
-              <th className="px-4 py-3 text-left text-sm font-medium">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredUsers.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-secondary-500">
-                  No users found
-                </td>
+      {isLoading ? (
+        <div className="flex justify-center py-8">
+          <Loader2 className="w-6 h-6 animate-spin text-primary-500" />
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-secondary-600 text-white">
+                <th className="px-4 py-3 text-left text-sm font-medium">User Name</th>
+                <th className="px-4 py-3 text-left text-sm font-medium">Email</th>
+                <th className="px-4 py-3 text-left text-sm font-medium">Permissions</th>
+                <th className="px-4 py-3 text-left text-sm font-medium">Actions</th>
               </tr>
-            ) : (
-              filteredUsers.map((user) => (
-                <tr key={user.id} className="border-b border-secondary-200">
-                  <td className="px-4 py-3 text-sm text-secondary-700">{user.name}</td>
-                  <td className="px-4 py-3 text-sm text-secondary-700">{user.email}</td>
-                  <td className="px-4 py-3 text-sm text-secondary-700">{user.permissions}</td>
-                  <td className="px-4 py-3 text-sm">
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleEdit(user)}
-                        className="px-3 py-1 text-xs border border-secondary-300 rounded hover:bg-secondary-50 text-secondary-600"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(user)}
-                        className="px-3 py-1 text-xs border border-secondary-300 rounded hover:bg-red-50 text-secondary-600 hover:text-red-600"
-                      >
-                        Delete
-                      </button>
-                    </div>
+            </thead>
+            <tbody>
+              {filteredUsers.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-4 py-8 text-center text-secondary-500">
+                    No users found
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              ) : (
+                filteredUsers.map((user) => (
+                  <tr key={user.id} className="border-b border-secondary-200">
+                    <td className="px-4 py-3 text-sm text-secondary-700">{user.name}</td>
+                    <td className="px-4 py-3 text-sm text-secondary-700">{user.email}</td>
+                    <td className="px-4 py-3 text-sm text-secondary-700">{user.permissions}</td>
+                    <td className="px-4 py-3 text-sm">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleEdit(user)}
+                          className="px-3 py-1 text-xs border border-secondary-300 rounded hover:bg-secondary-50 text-secondary-600"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(user)}
+                          className="px-3 py-1 text-xs border border-secondary-300 rounded hover:bg-red-50 text-secondary-600 hover:text-red-600"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

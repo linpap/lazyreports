@@ -169,6 +169,8 @@ export const dataApi = {
 
   getVariants: (params) => api.get('/variants', { params }),
 
+  getCompanyUsers: () => api.get('/company-users'),
+
   getClients: (params) => api.get('/clients', { params }),
 
   getClientReport: (clientId, params) => api.get(`/clients/${clientId}/report`, { params }),

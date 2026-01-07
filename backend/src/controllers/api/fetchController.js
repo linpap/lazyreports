@@ -2879,6 +2879,55 @@ export const getCustomReports = async (req, res, next) => {
   }
 };
 
+/**
+ * Fetch company users
+ * GET /api/company-users
+ *
+ * Returns list of users in the same company as the current user
+ */
+export const getCompanyUsers = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+
+    // Get users from user_accounts with their extra info
+    const [rows] = await pool.execute(
+      `SELECT
+        ua.user_id,
+        ua.user_name,
+        ua.active,
+        COALESCE(uae.first_name, '') as first_name,
+        COALESCE(uae.last_name, '') as last_name,
+        COALESCE(uae.email, ua.user_name) as email,
+        CASE
+          WHEN ua.user_level = 1 THEN 'Owner'
+          WHEN ua.user_level = 2 THEN 'Admin'
+          ELSE 'User'
+        END as permissions
+      FROM user_accounts ua
+      LEFT JOIN user_accounts_extra uae ON ua.user_id = uae.user_id
+      WHERE ua.active = 1
+      ORDER BY ua.user_level ASC, ua.user_name ASC
+      LIMIT 100`
+    );
+
+    const users = rows.map(row => ({
+      id: row.user_id,
+      name: row.first_name && row.last_name
+        ? `${row.first_name} ${row.last_name}`.trim()
+        : row.user_name,
+      email: row.email,
+      permissions: row.permissions
+    }));
+
+    res.json({
+      success: true,
+      data: users
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export default {
   getUserDomains,
   getDefaultOffer,
@@ -2904,5 +2953,6 @@ export default {
   getAdvertisers,
   updateAdvertiser,
   createAdvertiser,
-  deleteAdvertiser
+  deleteAdvertiser,
+  getCompanyUsers
 };
