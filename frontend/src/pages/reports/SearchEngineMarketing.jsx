@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ChevronRight, Search, Globe, Link, FileText } from 'lucide-react';
 
 const reportTypes = [
@@ -7,39 +7,45 @@ const reportTypes = [
     name: 'Search Query',
     description: 'Analyze search queries and keyword performance',
     icon: Search,
+    path: '/reports/search-query-report',
   },
   {
     id: 'search-query-words',
     name: 'Search Query Individual Words',
     description: 'Break down search queries into individual words',
     icon: FileText,
+    path: null, // TODO: Implement
   },
   {
     id: 'geo-location',
     name: 'Geo Location',
     description: 'Geographic distribution of search traffic',
     icon: Globe,
+    path: null, // TODO: Implement
   },
   {
     id: 'domain-placement',
     name: 'Domain Placement',
     description: 'Domain-level placement analysis',
     icon: Link,
+    path: null, // TODO: Implement
   },
   {
     id: 'url-placement',
     name: 'URL Placement',
     description: 'URL-level placement analysis',
     icon: Link,
+    path: null, // TODO: Implement
   },
 ];
 
 export default function SearchEngineMarketing() {
-  const [selectedReport, setSelectedReport] = useState(null);
+  const navigate = useNavigate();
 
-  const handleReportClick = (reportId) => {
-    setSelectedReport(reportId);
-    // TODO: Navigate to specific report or show report content
+  const handleReportClick = (report) => {
+    if (report.path) {
+      navigate(report.path);
+    }
   };
 
   return (
@@ -56,8 +62,9 @@ export default function SearchEngineMarketing() {
           {reportTypes.map((report) => (
             <button
               key={report.id}
-              onClick={() => handleReportClick(report.id)}
-              className="w-full flex items-center justify-between px-6 py-4 hover:bg-secondary-50 transition-colors text-left group"
+              onClick={() => handleReportClick(report)}
+              className={`w-full flex items-center justify-between px-6 py-4 hover:bg-secondary-50 transition-colors text-left group ${!report.path ? 'opacity-50 cursor-not-allowed' : ''}`}
+              disabled={!report.path}
             >
               <div className="flex items-center gap-4">
                 <report.icon className="w-5 h-5 text-secondary-400 group-hover:text-primary-500" />
