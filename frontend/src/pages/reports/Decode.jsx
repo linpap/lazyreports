@@ -50,23 +50,45 @@ export default function Decode() {
         decoded.base64 = 'Not valid Base64';
       }
 
-      // Check for LazySauce encoded hash format: {prefix}_{base64}[suffix]
+      // Check for LazySauce encoded hash format: {dkey}_{base64_pkey}{3-char-suffix}
       // Example: 2427_MTU5NTYyOQ==48c
-      const lazySauceMatch = value.match(/^(\d+)_([A-Za-z0-9+/]+=*)([a-f0-9]*)$/i);
+      // The format is: dkey_[base64 encoded pkey][3 char suffix]
+      // To decode: split by _, take second part, remove last 3 chars, base64 decode
+      const lazySauceMatch = value.match(/^(\d+)_(.+)$/);
       if (lazySauceMatch) {
-        const [, prefix, base64Part, suffix] = lazySauceMatch;
-        try {
-          const decodedValue = atob(base64Part);
-          decoded.lazySauceFormat = {
-            prefix,
-            encodedPart: base64Part,
-            decodedValue,
-            suffix: suffix || '',
-            fullDecoded: decodedValue
-          };
-          decoded.type = 'LazySauce Encoded Hash';
-        } catch (e) {
-          // Not valid embedded base64
+        const [, dkey, encodedPart] = lazySauceMatch;
+        // Remove last 3 characters (suffix) before decoding
+        if (encodedPart.length > 3) {
+          const suffix = encodedPart.slice(-3);
+          const base64Part = encodedPart.slice(0, -3);
+          try {
+            const decodedPkey = atob(base64Part);
+            decoded.lazySauceFormat = {
+              dkey,
+              fullEncodedPart: encodedPart,
+              base64Part,
+              suffix,
+              decodedPkey,
+              database: `lazysauce_${dkey}`
+            };
+            decoded.type = 'LazySauce Encoded Hash';
+          } catch (e) {
+            // Not valid base64, try without removing suffix
+            try {
+              const decodedPkey = atob(encodedPart);
+              decoded.lazySauceFormat = {
+                dkey,
+                fullEncodedPart: encodedPart,
+                base64Part: encodedPart,
+                suffix: '',
+                decodedPkey,
+                database: `lazysauce_${dkey}`
+              };
+              decoded.type = 'LazySauce Encoded Hash';
+            } catch (e2) {
+              // Not valid embedded base64
+            }
+          }
         }
       }
 
@@ -230,7 +252,7 @@ export default function Decode() {
                 <div className="flex items-center justify-between mb-1">
                   <div className="text-sm font-medium text-green-600">Decoded Hash</div>
                   <button
-                    onClick={() => handleCopy(decodedResult.lazySauceFormat.decodedValue)}
+                    onClick={() => handleCopy(decodedResult.lazySauceFormat.decodedPkey)}
                     className="text-primary-600 hover:text-primary-700"
                   >
                     {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
@@ -238,16 +260,20 @@ export default function Decode() {
                 </div>
                 <div className="space-y-2">
                   <div className="text-secondary-900">
-                    <span className="text-secondary-500">Prefix:</span>{' '}
-                    <span className="font-mono">{decodedResult.lazySauceFormat.prefix}</span>
+                    <span className="text-secondary-500">Decoded Pkey:</span>{' '}
+                    <span className="font-mono font-bold text-green-700 text-lg">{decodedResult.lazySauceFormat.decodedPkey}</span>
                   </div>
                   <div className="text-secondary-900">
-                    <span className="text-secondary-500">Encoded Part:</span>{' '}
-                    <span className="font-mono">{decodedResult.lazySauceFormat.encodedPart}</span>
+                    <span className="text-secondary-500">Database:</span>{' '}
+                    <span className="font-mono">{decodedResult.lazySauceFormat.database}</span>
                   </div>
                   <div className="text-secondary-900">
-                    <span className="text-secondary-500">Decoded Value:</span>{' '}
-                    <span className="font-mono font-bold text-green-700">{decodedResult.lazySauceFormat.decodedValue}</span>
+                    <span className="text-secondary-500">Dkey:</span>{' '}
+                    <span className="font-mono">{decodedResult.lazySauceFormat.dkey}</span>
+                  </div>
+                  <div className="text-secondary-900">
+                    <span className="text-secondary-500">Base64 Part:</span>{' '}
+                    <span className="font-mono text-sm">{decodedResult.lazySauceFormat.base64Part}</span>
                   </div>
                   {decodedResult.lazySauceFormat.suffix && (
                     <div className="text-secondary-900">
