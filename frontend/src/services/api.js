@@ -190,6 +190,11 @@ export const dataApi = {
 // =====================
 
 export const settingsApi = {
+  getSettings: () => api.get('/settings'),
+
+  saveDefaultReport: (reportType) =>
+    api.post('/settings/default-report', { reportType }),
+
   saveDefaultDate: (data) => api.post('/settings/default-date', data),
 
   saveDefaultOffer: (offerId) =>

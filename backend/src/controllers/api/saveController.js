@@ -2,6 +2,63 @@ import pool from '../../config/database.js';
 import { ApiError } from '../../middleware/errorHandler.js';
 
 /**
+ * Get all user settings
+ * GET /api/settings
+ */
+export const getUserSettings = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+
+    const [rows] = await pool.execute(
+      `SELECT setting_key, setting_value FROM user_settings WHERE user_id = ?`,
+      [userId]
+    );
+
+    // Convert to object
+    const settings = {};
+    for (const row of rows) {
+      try {
+        settings[row.setting_key] = JSON.parse(row.setting_value);
+      } catch {
+        settings[row.setting_key] = row.setting_value;
+      }
+    }
+
+    res.json({
+      success: true,
+      data: settings
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Save default report preference
+ * POST /api/settings/default-report
+ */
+export const saveDefaultReport = async (req, res, next) => {
+  try {
+    const { reportType } = req.body;
+    const userId = req.user.id;
+
+    await pool.execute(
+      `INSERT INTO user_settings (user_id, setting_key, setting_value)
+       VALUES (?, 'default_report', ?)
+       ON DUPLICATE KEY UPDATE setting_value = ?`,
+      [userId, reportType, reportType]
+    );
+
+    res.json({
+      success: true,
+      message: 'Default report saved successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Save default date preference
  * POST /api/settings/default-date
  */
@@ -401,6 +458,8 @@ export const importSales = async (req, res, next) => {
 };
 
 export default {
+  getUserSettings,
+  saveDefaultReport,
   saveDefaultDate,
   saveDefaultOffer,
   saveReport,

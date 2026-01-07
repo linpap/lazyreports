@@ -92,6 +92,8 @@ router.post(
 // =====================
 
 // Settings
+router.get('/settings', saveController.getUserSettings);
+router.post('/settings/default-report', saveController.saveDefaultReport);
 router.post('/settings/default-date', saveController.saveDefaultDate);
 router.post('/settings/default-offer', saveController.saveDefaultOffer);
 router.post('/settings/timezone', saveController.saveTimezone);
