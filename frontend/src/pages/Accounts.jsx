@@ -481,9 +481,117 @@ function CompanyUsersTab() {
 }
 
 function AffiliateAccountsTab() {
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Mock affiliate accounts data - in production this would come from an API
+  const affiliateAccounts = [
+    { id: 1, userName: 'linpap1@hotmail.com', channel: 'mad*,org*', subchannel: '', percentage: '100%', payout: '', cpc: '', cpm: '', offer: 'vanguardhomewarranty.com, get.selecthomewarranty.com' },
+    { id: 2, userName: 'rafaelc@bluecherrygroup.com', channel: '', subchannel: '', percentage: '100%', payout: '', cpc: '', cpm: '', offer: 'get.selecthomewarranty.com' },
+    { id: 3, userName: 'asia@madrivo.com', channel: 'mad*', subchannel: '', percentage: '100%', payout: '', cpc: '', cpm: '', offer: 'vanguardhomewarranty.com, apxfingroup.com' },
+    { id: 4, userName: 'linpap@gmail.com', channel: 'mad*', subchannel: '', percentage: '100%', payout: '', cpc: '', cpm: '', offer: 'vanguardhomewarranty.com, get.selecthomewarranty.com' },
+  ];
+
+  // Filter affiliates by search term (case insensitive)
+  const filteredAffiliates = searchTerm
+    ? affiliateAccounts.filter(a =>
+        a.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        a.channel.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        a.offer.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    : affiliateAccounts;
+
+  const handleEdit = (affiliate) => {
+    toast.success(`Edit ${affiliate.userName} - Feature coming soon`);
+  };
+
+  const handleDelete = (affiliate) => {
+    toast.success(`Delete ${affiliate.userName} - Feature coming soon`);
+  };
+
+  const handleAddNew = () => {
+    toast.success('Add New Affiliate - Feature coming soon');
+  };
+
   return (
-    <div className="text-secondary-500 text-center py-8">
-      Affiliate Accounts settings coming soon...
+    <div className="space-y-6">
+      {/* Add New Button */}
+      <div className="flex justify-end">
+        <button
+          onClick={handleAddNew}
+          className="btn btn-primary"
+        >
+          Add New
+        </button>
+      </div>
+
+      {/* Search */}
+      <div className="max-w-md">
+        <label className="label">Search Affiliate User</label>
+        <input
+          type="text"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          placeholder="Search is case insensitive"
+          className="input"
+        />
+      </div>
+
+      {/* Affiliates Table */}
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="bg-secondary-600 text-white">
+              <th className="px-3 py-3 text-left text-sm font-medium">User Name</th>
+              <th className="px-3 py-3 text-left text-sm font-medium">Channel</th>
+              <th className="px-3 py-3 text-left text-sm font-medium">Subchannel</th>
+              <th className="px-3 py-3 text-left text-sm font-medium">Percentage</th>
+              <th className="px-3 py-3 text-left text-sm font-medium">Payout</th>
+              <th className="px-3 py-3 text-left text-sm font-medium">CPC</th>
+              <th className="px-3 py-3 text-left text-sm font-medium">CPM</th>
+              <th className="px-3 py-3 text-left text-sm font-medium">Offer</th>
+              <th className="px-3 py-3 text-left text-sm font-medium">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredAffiliates.length === 0 ? (
+              <tr>
+                <td colSpan={9} className="px-3 py-8 text-center text-secondary-500">
+                  No affiliates found
+                </td>
+              </tr>
+            ) : (
+              filteredAffiliates.map((affiliate) => (
+                <tr key={affiliate.id} className="border-b border-secondary-200">
+                  <td className="px-3 py-3 text-sm text-secondary-700">{affiliate.userName}</td>
+                  <td className="px-3 py-3 text-sm text-secondary-700">{affiliate.channel}</td>
+                  <td className="px-3 py-3 text-sm text-secondary-700">{affiliate.subchannel}</td>
+                  <td className="px-3 py-3 text-sm text-secondary-700">{affiliate.percentage}</td>
+                  <td className="px-3 py-3 text-sm text-secondary-700">{affiliate.payout}</td>
+                  <td className="px-3 py-3 text-sm text-secondary-700">{affiliate.cpc}</td>
+                  <td className="px-3 py-3 text-sm text-secondary-700">{affiliate.cpm}</td>
+                  <td className="px-3 py-3 text-sm text-secondary-700 max-w-[200px]">{affiliate.offer}</td>
+                  <td className="px-3 py-3 text-sm">
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleEdit(affiliate)}
+                        className="px-3 py-1 text-xs border border-secondary-300 rounded hover:bg-secondary-50 text-secondary-600"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(affiliate)}
+                        className="px-3 py-1 text-xs border border-secondary-300 rounded hover:bg-red-50 text-secondary-600 hover:text-red-600"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
