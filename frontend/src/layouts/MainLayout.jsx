@@ -27,6 +27,8 @@ import {
   PanelLeftClose,
   PanelLeft,
   Building2,
+  UserCircle,
+  AlertTriangle,
 } from 'lucide-react';
 
 const navigation = [
@@ -68,6 +70,8 @@ const navigation = [
   { name: 'Advertisers', href: '/advertisers', icon: Building2 },
   { name: 'IP Actions', href: '/ip-actions', icon: Shield },
   { name: 'Settings', href: '/settings', icon: Settings },
+  { name: 'Accounts', href: '/accounts', icon: UserCircle },
+  { name: 'Submit Issue', href: '/submit-issue', icon: AlertTriangle },
 ];
 
 function NavItem({ item, collapsed, mobile = false, onNavigate }) {
