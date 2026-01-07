@@ -154,24 +154,38 @@ export default function Decode() {
           <h2 className="text-lg font-semibold text-secondary-900 mb-4">Decode Results</h2>
 
           <div className="space-y-4">
+            {/* Always show original value */}
+            <div className="p-4 bg-secondary-50 rounded-lg">
+              <div className="flex items-center justify-between mb-1">
+                <div className="text-sm font-medium text-secondary-600">Original Value</div>
+                <button
+                  onClick={() => handleCopy(inputValue)}
+                  className="text-primary-600 hover:text-primary-700"
+                >
+                  {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                </button>
+              </div>
+              <div className="text-secondary-900 font-mono break-all">{inputValue}</div>
+            </div>
+
             {decodedResult.type && (
-              <div className="p-4 bg-secondary-50 rounded-lg">
-                <div className="text-sm font-medium text-secondary-600 mb-1">Detected Type</div>
+              <div className="p-4 bg-blue-50 rounded-lg">
+                <div className="text-sm font-medium text-blue-600 mb-1">Detected Type</div>
                 <div className="text-secondary-900">{decodedResult.type}</div>
               </div>
             )}
 
             {decodedResult.hashType && (
-              <div className="p-4 bg-secondary-50 rounded-lg">
-                <div className="text-sm font-medium text-secondary-600 mb-1">Hash Type</div>
+              <div className="p-4 bg-purple-50 rounded-lg">
+                <div className="text-sm font-medium text-purple-600 mb-1">Hash Type</div>
                 <div className="text-secondary-900">{decodedResult.hashType}</div>
               </div>
             )}
 
             {decodedResult.base64 && decodedResult.base64 !== 'Not valid Base64' && (
-              <div className="p-4 bg-secondary-50 rounded-lg">
+              <div className="p-4 bg-green-50 rounded-lg">
                 <div className="flex items-center justify-between mb-1">
-                  <div className="text-sm font-medium text-secondary-600">Base64 Decoded</div>
+                  <div className="text-sm font-medium text-green-600">Base64 Decoded</div>
                   <button
                     onClick={() => handleCopy(decodedResult.base64)}
                     className="text-primary-600 hover:text-primary-700"
@@ -184,9 +198,9 @@ export default function Decode() {
             )}
 
             {decodedResult.urlDecoded && decodedResult.urlDecoded !== inputValue && (
-              <div className="p-4 bg-secondary-50 rounded-lg">
+              <div className="p-4 bg-orange-50 rounded-lg">
                 <div className="flex items-center justify-between mb-1">
-                  <div className="text-sm font-medium text-secondary-600">URL Decoded</div>
+                  <div className="text-sm font-medium text-orange-600">URL Decoded</div>
                   <button
                     onClick={() => handleCopy(decodedResult.urlDecoded)}
                     className="text-primary-600 hover:text-primary-700"
@@ -199,9 +213,9 @@ export default function Decode() {
             )}
 
             {decodedResult.hexDecoded && (
-              <div className="p-4 bg-secondary-50 rounded-lg">
+              <div className="p-4 bg-cyan-50 rounded-lg">
                 <div className="flex items-center justify-between mb-1">
-                  <div className="text-sm font-medium text-secondary-600">Hex Decoded</div>
+                  <div className="text-sm font-medium text-cyan-600">Hex Decoded</div>
                   <button
                     onClick={() => handleCopy(decodedResult.hexDecoded)}
                     className="text-primary-600 hover:text-primary-700"
@@ -214,11 +228,26 @@ export default function Decode() {
             )}
 
             {decodedResult.json && (
-              <div className="p-4 bg-secondary-50 rounded-lg">
-                <div className="text-sm font-medium text-secondary-600 mb-1">JSON Parsed</div>
+              <div className="p-4 bg-indigo-50 rounded-lg">
+                <div className="text-sm font-medium text-indigo-600 mb-1">JSON Parsed</div>
                 <pre className="text-secondary-900 font-mono text-sm overflow-x-auto">
                   {JSON.stringify(decodedResult.json, null, 2)}
                 </pre>
+              </div>
+            )}
+
+            {/* Show message if no special decoding found */}
+            {!decodedResult.type &&
+             !decodedResult.hashType &&
+             (decodedResult.base64 === 'Not valid Base64') &&
+             (decodedResult.urlDecoded === inputValue) &&
+             !decodedResult.hexDecoded &&
+             !decodedResult.json && (
+              <div className="p-4 bg-yellow-50 rounded-lg">
+                <div className="text-sm font-medium text-yellow-600 mb-1">Analysis</div>
+                <div className="text-secondary-700">
+                  No special encoding detected. The value appears to be plain text.
+                </div>
               </div>
             )}
           </div>
