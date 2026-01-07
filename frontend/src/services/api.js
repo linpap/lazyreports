@@ -165,6 +165,10 @@ export const dataApi = {
 
   clearIP: (data) => api.post('/clear-ip', data),
 
+  // UTM Setup
+  getUtmSetup: (offer) => api.get('/utm-setup', { params: { offer } }),
+  saveUtmSetup: (data) => api.post('/utm-setup', data),
+
   getChannels: (params) => api.get('/channels', { params }),
 
   getVariants: (params) => api.get('/variants', { params }),

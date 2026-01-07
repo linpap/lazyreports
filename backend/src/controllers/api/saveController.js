@@ -587,6 +587,92 @@ export const createAffiliateAccount = async (req, res, next) => {
   }
 };
 
+/**
+ * Save UTM priority values for a domain
+ * POST /api/utm-setup
+ */
+export const saveUtmSetup = async (req, res, next) => {
+  try {
+    const { offer, priority, value } = req.body;
+
+    if (!offer) {
+      throw new ApiError(400, 'Offer is required');
+    }
+
+    if (!priority) {
+      throw new ApiError(400, 'Priority type is required');
+    }
+
+    // Determine which column to update based on priority type
+    let column;
+    switch (priority) {
+      case 'Channel':
+        column = 'channel_priority';
+        break;
+      case 'Subchannel':
+        column = 'subchannel_priority';
+        break;
+      case 'Keyword':
+        column = 'keyword_priority';
+        break;
+      default:
+        throw new ApiError(400, 'Invalid priority type. Must be Channel, Subchannel, or Keyword');
+    }
+
+    // Update the domain's priority value
+    const [result] = await pool.execute(
+      `UPDATE lazysauce.domain SET ${column} = ? WHERE name = ?`,
+      [value || '', offer]
+    );
+
+    if (result.affectedRows === 0) {
+      throw new ApiError(404, 'Domain not found');
+    }
+
+    res.json({
+      success: true,
+      message: `${priority} priority updated successfully for ${offer}`
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get UTM priority values for a domain
+ * GET /api/utm-setup
+ */
+export const getUtmSetup = async (req, res, next) => {
+  try {
+    const { offer } = req.query;
+
+    if (!offer) {
+      throw new ApiError(400, 'Offer is required');
+    }
+
+    const [rows] = await pool.execute(
+      `SELECT channel_priority, subchannel_priority, keyword_priority
+       FROM lazysauce.domain WHERE name = ?`,
+      [offer]
+    );
+
+    if (rows.length === 0) {
+      throw new ApiError(404, 'Domain not found');
+    }
+
+    res.json({
+      success: true,
+      data: {
+        channelPriority: rows[0].channel_priority || '',
+        subchannelPriority: rows[0].subchannel_priority || '',
+        keywordPriority: rows[0].keyword_priority || ''
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export default {
   getUserSettings,
   saveDefaultReport,
@@ -605,5 +691,7 @@ export default {
   importSales,
   createCompanyOffer,
   createCompanyUser,
-  createAffiliateAccount
+  createAffiliateAccount,
+  saveUtmSetup,
+  getUtmSetup
 };

@@ -112,6 +112,10 @@ router.post('/settings/default-date', saveController.saveDefaultDate);
 router.post('/settings/default-offer', saveController.saveDefaultOffer);
 router.post('/settings/timezone', saveController.saveTimezone);
 
+// UTM Setup
+router.get('/utm-setup', saveController.getUtmSetup);
+router.post('/utm-setup', saveController.saveUtmSetup);
+
 // Reports
 router.get('/reports', saveController.getSavedReports);
 router.post(

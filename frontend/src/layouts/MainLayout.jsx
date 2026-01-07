@@ -66,6 +66,7 @@ const navigation = [
       { name: 'Import Sales', href: '/reports/import-sales', icon: Upload },
       { name: 'Clear IP', href: '/reports/clear-ip', icon: UserX },
       { name: 'Hash Report', href: '/reports/hash', icon: Hash },
+      { name: 'UTM Setup', href: '/reports/utm-setup', icon: Settings },
     ],
   },
   { name: 'Clients', href: '/clients', icon: Users },

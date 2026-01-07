@@ -24,6 +24,7 @@ import DomainPlacementReport from './pages/reports/DomainPlacementReport';
 import URLPlacementReport from './pages/reports/URLPlacementReport';
 import ImportSales from './pages/reports/ImportSales';
 import ClearIP from './pages/reports/ClearIP';
+import UTMSetup from './pages/reports/UTMSetup';
 import HashReport from './pages/reports/HashReport';
 import AveragesReport from './pages/reports/AveragesReport';
 import AdvertiserReport from './pages/reports/AdvertiserReport';
@@ -109,6 +110,7 @@ function App() {
           <Route path="url-placement" element={<URLPlacementReport />} />
           <Route path="import-sales" element={<ImportSales />} />
           <Route path="clear-ip" element={<ClearIP />} />
+          <Route path="utm-setup" element={<UTMSetup />} />
           <Route path="hash" element={<HashReport />} />
           <Route path="details" element={<DetailsReport />} />
           <Route path="offenders" element={<OffendersReport />} />
