@@ -37,12 +37,62 @@ export default function Decode() {
       let decoded = {};
       const value = inputValue.trim();
 
-      // Try Base64 decode
+      // Try Base64 decode of entire value
       try {
         const base64Decoded = atob(value);
-        decoded.base64 = base64Decoded;
+        // Check if result is printable
+        if (/^[\x20-\x7E\s]+$/.test(base64Decoded)) {
+          decoded.base64 = base64Decoded;
+        } else {
+          decoded.base64 = 'Not valid Base64';
+        }
       } catch (e) {
         decoded.base64 = 'Not valid Base64';
+      }
+
+      // Check for LazySauce encoded hash format: {prefix}_{base64}[suffix]
+      // Example: 2427_MTU5NTYyOQ==48c
+      const lazySauceMatch = value.match(/^(\d+)_([A-Za-z0-9+/]+=*)([a-f0-9]*)$/i);
+      if (lazySauceMatch) {
+        const [, prefix, base64Part, suffix] = lazySauceMatch;
+        try {
+          const decodedValue = atob(base64Part);
+          decoded.lazySauceFormat = {
+            prefix,
+            encodedPart: base64Part,
+            decodedValue,
+            suffix: suffix || '',
+            fullDecoded: decodedValue
+          };
+          decoded.type = 'LazySauce Encoded Hash';
+        } catch (e) {
+          // Not valid embedded base64
+        }
+      }
+
+      // Look for embedded base64 patterns (strings ending with = or ==)
+      if (!decoded.lazySauceFormat) {
+        const base64Pattern = /([A-Za-z0-9+/]{4,}={1,2})/g;
+        const matches = value.match(base64Pattern);
+        if (matches && matches.length > 0) {
+          decoded.embeddedBase64 = [];
+          for (const match of matches) {
+            try {
+              const decodedMatch = atob(match);
+              if (/^[\x20-\x7E\s]+$/.test(decodedMatch)) {
+                decoded.embeddedBase64.push({
+                  encoded: match,
+                  decoded: decodedMatch
+                });
+              }
+            } catch (e) {
+              // Skip invalid base64
+            }
+          }
+          if (decoded.embeddedBase64.length === 0) {
+            delete decoded.embeddedBase64;
+          }
+        }
       }
 
       // Try URL decode
@@ -175,6 +225,63 @@ export default function Decode() {
               </div>
             )}
 
+            {decodedResult.lazySauceFormat && (
+              <div className="p-4 bg-green-50 rounded-lg">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="text-sm font-medium text-green-600">Decoded Hash</div>
+                  <button
+                    onClick={() => handleCopy(decodedResult.lazySauceFormat.decodedValue)}
+                    className="text-primary-600 hover:text-primary-700"
+                  >
+                    {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  <div className="text-secondary-900">
+                    <span className="text-secondary-500">Prefix:</span>{' '}
+                    <span className="font-mono">{decodedResult.lazySauceFormat.prefix}</span>
+                  </div>
+                  <div className="text-secondary-900">
+                    <span className="text-secondary-500">Encoded Part:</span>{' '}
+                    <span className="font-mono">{decodedResult.lazySauceFormat.encodedPart}</span>
+                  </div>
+                  <div className="text-secondary-900">
+                    <span className="text-secondary-500">Decoded Value:</span>{' '}
+                    <span className="font-mono font-bold text-green-700">{decodedResult.lazySauceFormat.decodedValue}</span>
+                  </div>
+                  {decodedResult.lazySauceFormat.suffix && (
+                    <div className="text-secondary-900">
+                      <span className="text-secondary-500">Suffix:</span>{' '}
+                      <span className="font-mono">{decodedResult.lazySauceFormat.suffix}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {decodedResult.embeddedBase64 && decodedResult.embeddedBase64.length > 0 && (
+              <div className="p-4 bg-teal-50 rounded-lg">
+                <div className="text-sm font-medium text-teal-600 mb-2">Embedded Base64 Found</div>
+                <div className="space-y-2">
+                  {decodedResult.embeddedBase64.map((item, idx) => (
+                    <div key={idx} className="flex items-center justify-between">
+                      <div>
+                        <span className="font-mono text-sm text-secondary-500">{item.encoded}</span>
+                        <span className="mx-2">→</span>
+                        <span className="font-mono font-bold text-teal-700">{item.decoded}</span>
+                      </div>
+                      <button
+                        onClick={() => handleCopy(item.decoded)}
+                        className="text-primary-600 hover:text-primary-700"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {decodedResult.hashType && (
               <div className="p-4 bg-purple-50 rounded-lg">
                 <div className="text-sm font-medium text-purple-600 mb-1">Hash Type</div>
@@ -239,6 +346,8 @@ export default function Decode() {
             {/* Show message if no special decoding found */}
             {!decodedResult.type &&
              !decodedResult.hashType &&
+             !decodedResult.lazySauceFormat &&
+             !decodedResult.embeddedBase64 &&
              (decodedResult.base64 === 'Not valid Base64') &&
              (decodedResult.urlDecoded === inputValue) &&
              !decodedResult.hexDecoded &&

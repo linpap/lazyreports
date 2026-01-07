@@ -170,8 +170,12 @@ export const dataApi = {
   getVariants: (params) => api.get('/variants', { params }),
 
   getCompanyUsers: () => api.get('/company-users'),
+  createCompanyUser: (data) => api.post('/company-users', data),
 
   getAffiliateAccounts: () => api.get('/affiliate-accounts'),
+  createAffiliateAccount: (data) => api.post('/affiliate-accounts', data),
+
+  createCompanyOffer: (data) => api.post('/company-offers', data),
 
   getClients: (params) => api.get('/clients', { params }),
 

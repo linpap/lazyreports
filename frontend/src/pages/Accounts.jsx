@@ -1,10 +1,32 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { Save, Loader2, Calendar, Copy, ExternalLink } from 'lucide-react';
+import { Save, Loader2, Calendar, Copy, ExternalLink, X, Plus } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { authApi, domainsApi, dataApi } from '../services/api';
+
+// Modal Component
+function Modal({ isOpen, onClose, title, children }) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div className="flex min-h-screen items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/50" onClick={onClose} />
+        <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-secondary-900">{title}</h3>
+            <button onClick={onClose} className="text-secondary-400 hover:text-secondary-600">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const tabs = [
   { id: 'profile', label: 'Profile Settings' },
@@ -269,6 +291,9 @@ function APIControlTab() {
 
 function CompanyOffersTab() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newDomainName, setNewDomainName] = useState('');
+  const queryClient = useQueryClient();
 
   // Fetch user's domains
   const { data: domainsData, isLoading } = useQuery({
@@ -284,6 +309,19 @@ function CompanyOffersTab() {
     ? domains.filter(d => d.name?.includes(searchTerm))
     : domains;
 
+  const createMutation = useMutation({
+    mutationFn: (data) => dataApi.createCompanyOffer(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['domains']);
+      setShowAddModal(false);
+      setNewDomainName('');
+      toast.success('Domain created successfully');
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.error?.message || 'Failed to create domain');
+    },
+  });
+
   const handleEdit = (domain) => {
     toast.success(`Edit ${domain.name} - Feature coming soon`);
   };
@@ -293,7 +331,15 @@ function CompanyOffersTab() {
   };
 
   const handleAddNew = () => {
-    toast.success('Add New - Feature coming soon');
+    setShowAddModal(true);
+  };
+
+  const handleCreateOffer = () => {
+    if (!newDomainName.trim()) {
+      toast.error('Domain name is required');
+      return;
+    }
+    createMutation.mutate({ domainName: newDomainName.trim() });
   };
 
   return (
@@ -368,12 +414,47 @@ function CompanyOffersTab() {
           </table>
         </div>
       )}
+
+      {/* Add New Modal */}
+      <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="Add New Domain">
+        <div className="space-y-4">
+          <div>
+            <label className="label">Domain Name</label>
+            <input
+              type="text"
+              value={newDomainName}
+              onChange={(e) => setNewDomainName(e.target.value)}
+              placeholder="e.g., example.com"
+              className="input"
+            />
+          </div>
+          <div className="flex gap-2 justify-end">
+            <button
+              onClick={() => setShowAddModal(false)}
+              className="btn btn-secondary"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleCreateOffer}
+              disabled={createMutation.isPending}
+              className="btn btn-primary"
+            >
+              {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Create
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
 
 function CompanyUsersTab() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newUser, setNewUser] = useState({ userName: '', email: '', permissions: 'User' });
+  const queryClient = useQueryClient();
 
   // Fetch company users from API
   const { data: usersData, isLoading } = useQuery({
@@ -392,6 +473,19 @@ function CompanyUsersTab() {
       )
     : companyUsers;
 
+  const createMutation = useMutation({
+    mutationFn: (data) => dataApi.createCompanyUser(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['company-users']);
+      setShowAddModal(false);
+      setNewUser({ userName: '', email: '', permissions: 'User' });
+      toast.success('User created successfully');
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.error?.message || 'Failed to create user');
+    },
+  });
+
   const handleEdit = (user) => {
     toast.success(`Edit ${user.name} - Feature coming soon`);
   };
@@ -401,7 +495,15 @@ function CompanyUsersTab() {
   };
 
   const handleAddNew = () => {
-    toast.success('Add New User - Feature coming soon');
+    setShowAddModal(true);
+  };
+
+  const handleCreateUser = () => {
+    if (!newUser.userName.trim() || !newUser.email.trim()) {
+      toast.error('Name and email are required');
+      return;
+    }
+    createMutation.mutate(newUser);
   };
 
   return (
@@ -480,12 +582,71 @@ function CompanyUsersTab() {
           </table>
         </div>
       )}
+
+      {/* Add New Modal */}
+      <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="Add New User">
+        <div className="space-y-4">
+          <div>
+            <label className="label">Full Name</label>
+            <input
+              type="text"
+              value={newUser.userName}
+              onChange={(e) => setNewUser({ ...newUser, userName: e.target.value })}
+              placeholder="e.g., John Doe"
+              className="input"
+            />
+          </div>
+          <div>
+            <label className="label">Email</label>
+            <input
+              type="email"
+              value={newUser.email}
+              onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+              placeholder="e.g., john@example.com"
+              className="input"
+            />
+          </div>
+          <div>
+            <label className="label">Permissions</label>
+            <select
+              value={newUser.permissions}
+              onChange={(e) => setNewUser({ ...newUser, permissions: e.target.value })}
+              className="input"
+            >
+              <option value="User">User</option>
+              <option value="Admin">Admin</option>
+              <option value="Owner">Owner</option>
+            </select>
+          </div>
+          <div className="flex gap-2 justify-end">
+            <button
+              onClick={() => setShowAddModal(false)}
+              className="btn btn-secondary"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleCreateUser}
+              disabled={createMutation.isPending}
+              className="btn btn-primary"
+            >
+              {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Create
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
 
 function AffiliateAccountsTab() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newAffiliate, setNewAffiliate] = useState({
+    userName: '', channel: '', subchannel: '', percentage: '100%', payout: '', cpc: '', cpm: '', offer: ''
+  });
+  const queryClient = useQueryClient();
 
   // Fetch affiliate accounts from API
   const { data: affiliatesData, isLoading } = useQuery({
@@ -505,6 +666,19 @@ function AffiliateAccountsTab() {
       )
     : affiliateAccounts;
 
+  const createMutation = useMutation({
+    mutationFn: (data) => dataApi.createAffiliateAccount(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['affiliate-accounts']);
+      setShowAddModal(false);
+      setNewAffiliate({ userName: '', channel: '', subchannel: '', percentage: '100%', payout: '', cpc: '', cpm: '', offer: '' });
+      toast.success('Affiliate created successfully');
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.error?.message || 'Failed to create affiliate');
+    },
+  });
+
   const handleEdit = (affiliate) => {
     toast.success(`Edit ${affiliate.userName} - Feature coming soon`);
   };
@@ -514,7 +688,15 @@ function AffiliateAccountsTab() {
   };
 
   const handleAddNew = () => {
-    toast.success('Add New Affiliate - Feature coming soon');
+    setShowAddModal(true);
+  };
+
+  const handleCreateAffiliate = () => {
+    if (!newAffiliate.userName.trim()) {
+      toast.error('User name is required');
+      return;
+    }
+    createMutation.mutate(newAffiliate);
   };
 
   return (
@@ -603,6 +785,108 @@ function AffiliateAccountsTab() {
           </table>
         </div>
       )}
+
+      {/* Add New Modal */}
+      <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="Add New Affiliate">
+        <div className="space-y-4">
+          <div>
+            <label className="label">User Name *</label>
+            <input
+              type="text"
+              value={newAffiliate.userName}
+              onChange={(e) => setNewAffiliate({ ...newAffiliate, userName: e.target.value })}
+              placeholder="e.g., affiliate_user"
+              className="input"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">Channel</label>
+              <input
+                type="text"
+                value={newAffiliate.channel}
+                onChange={(e) => setNewAffiliate({ ...newAffiliate, channel: e.target.value })}
+                className="input"
+              />
+            </div>
+            <div>
+              <label className="label">Subchannel</label>
+              <input
+                type="text"
+                value={newAffiliate.subchannel}
+                onChange={(e) => setNewAffiliate({ ...newAffiliate, subchannel: e.target.value })}
+                className="input"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">Percentage</label>
+              <input
+                type="text"
+                value={newAffiliate.percentage}
+                onChange={(e) => setNewAffiliate({ ...newAffiliate, percentage: e.target.value })}
+                placeholder="100%"
+                className="input"
+              />
+            </div>
+            <div>
+              <label className="label">Payout</label>
+              <input
+                type="text"
+                value={newAffiliate.payout}
+                onChange={(e) => setNewAffiliate({ ...newAffiliate, payout: e.target.value })}
+                className="input"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">CPC</label>
+              <input
+                type="text"
+                value={newAffiliate.cpc}
+                onChange={(e) => setNewAffiliate({ ...newAffiliate, cpc: e.target.value })}
+                className="input"
+              />
+            </div>
+            <div>
+              <label className="label">CPM</label>
+              <input
+                type="text"
+                value={newAffiliate.cpm}
+                onChange={(e) => setNewAffiliate({ ...newAffiliate, cpm: e.target.value })}
+                className="input"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="label">Offer</label>
+            <input
+              type="text"
+              value={newAffiliate.offer}
+              onChange={(e) => setNewAffiliate({ ...newAffiliate, offer: e.target.value })}
+              className="input"
+            />
+          </div>
+          <div className="flex gap-2 justify-end">
+            <button
+              onClick={() => setShowAddModal(false)}
+              className="btn btn-secondary"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleCreateAffiliate}
+              disabled={createMutation.isPending}
+              className="btn btn-primary"
+            >
+              {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Create
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

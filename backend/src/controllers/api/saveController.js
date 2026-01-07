@@ -457,6 +457,136 @@ export const importSales = async (req, res, next) => {
   }
 };
 
+/**
+ * Create a new company offer/domain
+ * POST /api/company-offers
+ */
+export const createCompanyOffer = async (req, res, next) => {
+  try {
+    const { domainName } = req.body;
+
+    if (!domainName) {
+      throw new ApiError(400, 'Domain name is required');
+    }
+
+    // Generate a dkey from domain name
+    const dkey = domainName.replace(/[^a-zA-Z0-9]/g, '').toLowerCase().substring(0, 20);
+
+    const [result] = await pool.execute(
+      `INSERT INTO domains (dkey, name, created_at) VALUES (?, ?, NOW())`,
+      [dkey, domainName]
+    );
+
+    res.json({
+      success: true,
+      data: { id: result.insertId, dkey, name: domainName },
+      message: 'Domain created successfully'
+    });
+  } catch (error) {
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({
+        success: false,
+        error: { message: 'Domain already exists' }
+      });
+    }
+    next(error);
+  }
+};
+
+/**
+ * Create a new company user
+ * POST /api/company-users
+ */
+export const createCompanyUser = async (req, res, next) => {
+  try {
+    const { userName, email, permissions } = req.body;
+
+    if (!userName || !email) {
+      throw new ApiError(400, 'User name and email are required');
+    }
+
+    // Map permissions to user_level
+    const userLevel = permissions === 'Owner' ? 1 : permissions === 'Admin' ? 2 : 3;
+
+    // Create user in user_accounts
+    const [result] = await pool.execute(
+      `INSERT INTO user_accounts (user_name, user_level, active, created_at) VALUES (?, ?, 1, NOW())`,
+      [email, userLevel]
+    );
+
+    const userId = result.insertId;
+
+    // Parse first/last name
+    const nameParts = userName.split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+
+    // Create entry in user_accounts_extra
+    await pool.execute(
+      `INSERT INTO user_accounts_extra (user_id, first_name, last_name, email) VALUES (?, ?, ?, ?)`,
+      [userId, firstName, lastName, email]
+    );
+
+    res.json({
+      success: true,
+      data: { id: userId, name: userName, email, permissions },
+      message: 'User created successfully'
+    });
+  } catch (error) {
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({
+        success: false,
+        error: { message: 'User already exists' }
+      });
+    }
+    next(error);
+  }
+};
+
+/**
+ * Create a new affiliate account
+ * POST /api/affiliate-accounts
+ */
+export const createAffiliateAccount = async (req, res, next) => {
+  try {
+    const { userName, channel, subchannel, percentage, payout, cpc, cpm, offer } = req.body;
+
+    if (!userName) {
+      throw new ApiError(400, 'User name is required');
+    }
+
+    const [result] = await pool.execute(
+      `INSERT INTO affiliate_users (username, channel, subchannel, percentage, payout, cpc, cpm, offer, active, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, NOW())`,
+      [userName, channel || '', subchannel || '', percentage || '100%', payout || '', cpc || '', cpm || '', offer || '']
+    );
+
+    res.json({
+      success: true,
+      data: {
+        id: result.insertId,
+        userName,
+        channel: channel || '',
+        subchannel: subchannel || '',
+        percentage: percentage || '100%',
+        payout: payout || '',
+        cpc: cpc || '',
+        cpm: cpm || '',
+        offer: offer || ''
+      },
+      message: 'Affiliate account created successfully'
+    });
+  } catch (error) {
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({
+        success: false,
+        error: { message: 'Affiliate already exists' }
+      });
+    }
+    next(error);
+  }
+};
+
 export default {
   getUserSettings,
   saveDefaultReport,
@@ -472,5 +602,8 @@ export default {
   getFilters,
   deleteFilter,
   saveTimezone,
-  importSales
+  importSales,
+  createCompanyOffer,
+  createCompanyUser,
+  createAffiliateAccount
 };
