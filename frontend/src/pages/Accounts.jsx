@@ -373,9 +373,109 @@ function CompanyOffersTab() {
 }
 
 function CompanyUsersTab() {
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Mock company users data - in production this would come from an API
+  const companyUsers = [
+    { id: 1, name: 'Michael Cech', email: 'michael.cech@searchlightsolutions.com', permissions: 'Owner' },
+    { id: 2, name: 'Ian Ho', email: 'ian.ho@rebootmedia.net', permissions: 'Owner' },
+    { id: 3, name: 'Ankit Agarwal', email: 'ankit@theleadgroup.com', permissions: 'Admin' },
+    { id: 4, name: 'Raquel Fabrizio', email: 'raquel@theleadgroup.com', permissions: 'User' },
+    { id: 5, name: 'Angel Hernandez', email: 'angel@theleadgroup.com', permissions: 'User' },
+    { id: 6, name: 'Arsh user', email: 'linpap@gmail.com', permissions: 'User' },
+    { id: 7, name: 'Michael David', email: 'michaeldavid@theleadgroup.com', permissions: 'Admin' },
+  ];
+
+  // Filter users by search term (case insensitive as per screenshot)
+  const filteredUsers = searchTerm
+    ? companyUsers.filter(u =>
+        u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        u.email.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    : companyUsers;
+
+  const handleEdit = (user) => {
+    toast.success(`Edit ${user.name} - Feature coming soon`);
+  };
+
+  const handleDelete = (user) => {
+    toast.success(`Delete ${user.name} - Feature coming soon`);
+  };
+
+  const handleAddNew = () => {
+    toast.success('Add New User - Feature coming soon');
+  };
+
   return (
-    <div className="text-secondary-500 text-center py-8">
-      Company Users settings coming soon...
+    <div className="space-y-6">
+      {/* Add New Button */}
+      <div className="flex justify-end">
+        <button
+          onClick={handleAddNew}
+          className="btn btn-primary"
+        >
+          Add New
+        </button>
+      </div>
+
+      {/* Search */}
+      <div className="max-w-md">
+        <label className="label">Search Company User</label>
+        <input
+          type="text"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          placeholder="Search is case insensitive"
+          className="input"
+        />
+      </div>
+
+      {/* Users Table */}
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="bg-secondary-600 text-white">
+              <th className="px-4 py-3 text-left text-sm font-medium">User Name</th>
+              <th className="px-4 py-3 text-left text-sm font-medium">Email</th>
+              <th className="px-4 py-3 text-left text-sm font-medium">Permissions</th>
+              <th className="px-4 py-3 text-left text-sm font-medium">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredUsers.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="px-4 py-8 text-center text-secondary-500">
+                  No users found
+                </td>
+              </tr>
+            ) : (
+              filteredUsers.map((user) => (
+                <tr key={user.id} className="border-b border-secondary-200">
+                  <td className="px-4 py-3 text-sm text-secondary-700">{user.name}</td>
+                  <td className="px-4 py-3 text-sm text-secondary-700">{user.email}</td>
+                  <td className="px-4 py-3 text-sm text-secondary-700">{user.permissions}</td>
+                  <td className="px-4 py-3 text-sm">
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleEdit(user)}
+                        className="px-3 py-1 text-xs border border-secondary-300 rounded hover:bg-secondary-50 text-secondary-600"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(user)}
+                        className="px-3 py-1 text-xs border border-secondary-300 rounded hover:bg-red-50 text-secondary-600 hover:text-red-600"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
