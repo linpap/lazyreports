@@ -4,7 +4,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { Save, Loader2, Calendar, Copy, ExternalLink } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
-import { authApi } from '../services/api';
+import { authApi, domainsApi } from '../services/api';
 
 const tabs = [
   { id: 'profile', label: 'Profile Settings' },
@@ -268,9 +268,106 @@ function APIControlTab() {
 }
 
 function CompanyOffersTab() {
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Fetch user's domains
+  const { data: domainsData, isLoading } = useQuery({
+    queryKey: ['domains'],
+    queryFn: () => domainsApi.getDomains(),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const domains = domainsData?.data?.data || [];
+
+  // Filter domains by search term (case sensitive as per screenshot)
+  const filteredDomains = searchTerm
+    ? domains.filter(d => d.name?.includes(searchTerm))
+    : domains;
+
+  const handleEdit = (domain) => {
+    toast.success(`Edit ${domain.name} - Feature coming soon`);
+  };
+
+  const handleDelete = (domain) => {
+    toast.success(`Delete ${domain.name} - Feature coming soon`);
+  };
+
+  const handleAddNew = () => {
+    toast.success('Add New - Feature coming soon');
+  };
+
   return (
-    <div className="text-secondary-500 text-center py-8">
-      Company Offers settings coming soon...
+    <div className="space-y-6">
+      {/* Add New Button */}
+      <div className="flex justify-end">
+        <button
+          onClick={handleAddNew}
+          className="btn btn-primary"
+        >
+          Add New
+        </button>
+      </div>
+
+      {/* Search */}
+      <div className="max-w-md">
+        <label className="label">Search Domain Name</label>
+        <input
+          type="text"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          placeholder="Search is case sensitive"
+          className="input"
+        />
+      </div>
+
+      {/* Domains Table */}
+      {isLoading ? (
+        <div className="flex justify-center py-8">
+          <Loader2 className="w-6 h-6 animate-spin text-primary-500" />
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full max-w-2xl">
+            <thead>
+              <tr className="bg-secondary-600 text-white">
+                <th className="px-4 py-3 text-left text-sm font-medium">Domain Name</th>
+                <th className="px-4 py-3 text-left text-sm font-medium">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredDomains.length === 0 ? (
+                <tr>
+                  <td colSpan={2} className="px-4 py-8 text-center text-secondary-500">
+                    No domains found
+                  </td>
+                </tr>
+              ) : (
+                filteredDomains.map((domain) => (
+                  <tr key={domain.dkey} className="border-b border-secondary-200">
+                    <td className="px-4 py-3 text-sm text-secondary-700">{domain.name}</td>
+                    <td className="px-4 py-3 text-sm">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleEdit(domain)}
+                          className="px-3 py-1 text-xs border border-secondary-300 rounded hover:bg-secondary-50 text-secondary-600"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(domain)}
+                          className="px-3 py-1 text-xs border border-secondary-300 rounded hover:bg-red-50 text-secondary-600 hover:text-red-600"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
