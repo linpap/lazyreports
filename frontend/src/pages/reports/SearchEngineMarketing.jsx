@@ -14,28 +14,28 @@ const reportTypes = [
     name: 'Search Query Individual Words',
     description: 'Break down search queries into individual words',
     icon: FileText,
-    path: null, // TODO: Implement
+    path: '/reports/search-query-words',
   },
   {
     id: 'geo-location',
     name: 'Geo Location',
     description: 'Geographic distribution of search traffic',
     icon: Globe,
-    path: null, // TODO: Implement
+    path: '/reports/geo-location',
   },
   {
     id: 'domain-placement',
     name: 'Domain Placement',
     description: 'Domain-level placement analysis',
     icon: Link,
-    path: null, // TODO: Implement
+    path: '/reports/domain-placement',
   },
   {
     id: 'url-placement',
     name: 'URL Placement',
     description: 'URL-level placement analysis',
     icon: Link,
-    path: null, // TODO: Implement
+    path: '/reports/url-placement',
   },
 ];
 

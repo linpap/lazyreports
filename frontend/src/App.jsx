@@ -18,6 +18,10 @@ import CustomSQL from './pages/reports/CustomSQL';
 import Decode from './pages/reports/Decode';
 import SearchEngineMarketing from './pages/reports/SearchEngineMarketing';
 import SearchQueryReport from './pages/reports/SearchQueryReport';
+import SearchQueryWordsReport from './pages/reports/SearchQueryWordsReport';
+import GeoLocationReport from './pages/reports/GeoLocationReport';
+import DomainPlacementReport from './pages/reports/DomainPlacementReport';
+import URLPlacementReport from './pages/reports/URLPlacementReport';
 import ImportSales from './pages/reports/ImportSales';
 import ClearIP from './pages/reports/ClearIP';
 import HashReport from './pages/reports/HashReport';
@@ -99,6 +103,10 @@ function App() {
           <Route path="decode" element={<Decode />} />
           <Route path="sem" element={<SearchEngineMarketing />} />
           <Route path="search-query-report" element={<SearchQueryReport />} />
+          <Route path="search-query-words" element={<SearchQueryWordsReport />} />
+          <Route path="geo-location" element={<GeoLocationReport />} />
+          <Route path="domain-placement" element={<DomainPlacementReport />} />
+          <Route path="url-placement" element={<URLPlacementReport />} />
           <Route path="import-sales" element={<ImportSales />} />
           <Route path="clear-ip" element={<ClearIP />} />
           <Route path="hash" element={<HashReport />} />
