@@ -32,6 +32,7 @@ import ClientManagement from './pages/ClientManagement';
 import IPActions from './pages/IPActions';
 import Settings from './pages/Settings';
 import Accounts from './pages/Accounts';
+import SubmitIssue from './pages/SubmitIssue';
 import NotFound from './pages/NotFound';
 
 // Protected Route wrapper
@@ -114,6 +115,7 @@ function App() {
         {/* Settings & Accounts */}
         <Route path="settings" element={<Settings />} />
         <Route path="accounts" element={<Accounts />} />
+        <Route path="submit-issue" element={<SubmitIssue />} />
       </Route>
 
       {/* 404 */}
